@@ -1,0 +1,27 @@
+app_name: Etsy Bulk Variation Price Tool
+env: development
+debug: true
+host: 0.0.0.0
+port: 8000
+database_url: sqlite:///./etsy_tool.db
+session_secret_key: local-dev-session-secret
+token_encryption_key: local-dev-token-secret
+etsy_client_id: ""
+etsy_client_secret: ""
+etsy_redirect_uri: http://localhost:8000/oauth/etsy/callback
+etsy_scopes: "listings_r listings_w"
+etsy_authorize_url: https://www.etsy.com/oauth/connect
+etsy_token_url: https://api.etsy.com/v3/public/oauth/token
+etsy_base_url: https://openapi.etsy.com/v3/application
+request_timeout_seconds: 20.0
+max_retries: 4
+per_user_min_interval_seconds: 0.2
+job_poll_interval_seconds: 1.5
+token_expiry_buffer_seconds: 120
+max_percentage_change: 50.0
+enable_worker: true
+allow_admin_bypass_login: true
+default_locale: en
+supported_locales: en,tr
+i18n_path: config/i18n
+job_form_schema_path: config/ui/job_form.yaml
