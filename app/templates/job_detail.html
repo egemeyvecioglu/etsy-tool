@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<section
+  class="surface"
+  data-job-id="{{ job.id }}"
+  data-status-labels='{{ status_labels | tojson }}'
+  data-progress-template="{{ js_progress_template }}"
+  data-counts-template="{{ js_counts_template }}"
+  data-not-available="{{ js_not_available }}"
+  id="job-root"
+>
+  <div class="split">
+    <div>
+      <h1>{{ t("pages.job_detail.title_prefix") }} #{{ job.id }}</h1>
+      <p class="muted">
+        {{ t("pages.job_detail.type_label") }}: {{ job_type_label(job.type) }} |
+        {{ t("pages.job_detail.status_label") }}:
+        <span id="job-status">{{ status_label(summary.status) }}</span>
+      </p>
+    </div>
+    <div class="actions">
+      <a class="ghost" href="/api/jobs/{{ job.id }}/report.csv">{{ t("pages.job_detail.download_csv") }}</a>
+      <button
+        class="btn danger"
+        id="cancel-job-btn"
+        {% if summary.status in ["SUCCEEDED", "FAILED", "CANCELLED"] %}disabled{% endif %}
+      >
+        {{ t("pages.job_detail.cancel_job") }}
+      </button>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-text">{{ t("pages.job_detail.progress_template", completed=summary.completed_items, total=summary.total_items) }}</span>
+      <span id="counts-text">{{ t("pages.job_detail.counts_template", succeeded=summary.succeeded_items, failed=summary.failed_items, skipped=summary.skipped_items) }}</span>
+    </div>
+    {% set pct = ((summary.completed_items / summary.total_items) * 100) if summary.total_items else 0 %}
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width: {{ '%.2f' % pct }}%"></div>
+    </div>
+  </div>
+</section>
+
+<section class="surface">
+  <h2>{{ t("pages.job_detail.results_title") }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("pages.job_detail.table.listing_id") }}</th>
+          <th>{{ t("pages.job_detail.table.status") }}</th>
+          <th>{{ t("pages.job_detail.table.before") }}</th>
+          <th>{{ t("pages.job_detail.table.after") }}</th>
+          <th>{{ t("pages.job_detail.table.error") }}</th>
+        </tr>
+      </thead>
+      <tbody id="job-items-body">
+        {% for item in items %}
+        <tr>
+          <td>{{ item.listing_id }}</td>
+          <td><span class="pill {{ item.status|lower }}">{{ status_label(item.status) }}</span></td>
+          <td>{{ item.before_summary | tojson if item.before_summary else t("common.not_available") }}</td>
+          <td>{{ item.after_summary | tojson if item.after_summary else t("common.not_available") }}</td>
+          <td>{{ item.error if item.error else "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script src="/static/job_detail.js"></script>
+{% endblock %}

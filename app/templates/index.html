@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="surface hero-layout">
+  <div class="hero-copy">
+    <p class="eyebrow">{{ t("pages.index.eyebrow") }}</p>
+    <h1>{{ t("pages.index.heading") }}</h1>
+    <p class="hero-description">{{ t("pages.index.description") }}</p>
+
+    <div class="actions">
+      {% if connected %}
+      <a class="btn btn-large" href="/dashboard">{{ t("pages.index.open_dashboard") }}</a>
+      {% else %}
+      <a class="btn btn-large" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.index.connect_etsy") }}</a>
+      {% if show_admin_bypass %}
+      <form method="post" action="/auth/admin-login" class="inline-form">
+        <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <aside class="hero-panel">
+    <div class="meta-card">
+      <span>{{ t("pages.index.status_label") }}</span>
+      <strong>{{ t("common.connected") if connected else t("common.not_connected") }}</strong>
+    </div>
+    <div class="meta-card">
+      <span>{{ t("pages.index.oauth_mode_label") }}</span>
+      <strong>{{ t("pages.index.oauth_mode_value") }}</strong>
+    </div>
+    <div class="meta-card">
+      <span>{{ t("pages.index.execution_label") }}</span>
+      <strong>{{ t("pages.index.execution_value") }}</strong>
+    </div>
+  </aside>
+</section>
+{% endblock %}

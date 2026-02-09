@@ -1,0 +1,166 @@
+languages:
+  en: İngilizce
+  tr: Türkçe
+
+common:
+  app_name: Etsy Aracı
+  dashboard: Panel
+  create_job: İş Oluştur
+  sign_out: Çıkış Yap
+  connected: Bağlı
+  not_connected: Bağlı değil
+  not_available: Yok
+  language: Dil
+  admin_bypass_login: Yönetici Girişi (Test Modu)
+
+flash:
+  signed_out: Çıkış yapıldı
+  connect_first: Önce Etsy hesabınızı bağlayın
+  etsy_connected: Etsy hesabı bağlandı
+  invalid_oauth_state: Geçersiz OAuth callback durumu
+  admin_bypass_enabled: Yönetici test girişi etkinleştirildi
+  listings_synced: İlanlar başarıyla senkronize edildi
+
+pages:
+  index:
+    title: Etsy Bağla
+    eyebrow: Toplu Varyasyon Fiyat Güncelleme
+    heading: Uzaktan Satıcı Aracı
+    description: Etsy hesabınızı bağlayın, fiyat ayarlama kuralı oluşturun ve tüm varyasyon tekliflerinde dry-run önizleme ve indirilebilir rapor ile toplu güncelleme çalıştırın.
+    open_dashboard: Paneli Aç
+    connect_etsy: Etsy Hesabını Bağla
+    status_label: Durum
+    oauth_mode_label: OAuth Modu
+    oauth_mode_value: Authorization Code + PKCE
+    execution_label: Çalışma Şekli
+    execution_value: Asenkron Worker
+
+  dashboard:
+    title: Panel
+    subtitle: Bağlı hesap ve toplu güncelleme iş geçmişi.
+    create_button: Fiyat Güncelleme İşi Oluştur
+    internal_user: Dahili Kullanıcı
+    etsy_user: Etsy Kullanıcısı
+    etsy_shop: Etsy Mağazası
+    connect_notice: Etsy henüz bağlı değil.
+    connect_link: Etsy hesabınızı bağlayın
+    recent_jobs: Son İşler
+    no_jobs: Henüz iş yok.
+    table:
+      job: İş
+      status: Durum
+      progress: İlerleme
+      created: Oluşturma
+      actions: İşlem
+      view: Görüntüle
+
+  create_job:
+    title: Toplu Fiyat Güncelleme İşi Oluştur
+    subtitle: Tüm varyasyon tekliflerinin fiyatını tutar veya yüzde ile artırın ya da azaltın.
+    connect_notice: İş oluşturmadan önce Etsy'yi bağlayın.
+    connect_link: Etsy Hesabını Bağla
+    run_button: İşi Çalıştır
+    sync:
+      title: İlan Senkronizasyonu
+      subtitle: Aktif ilanları bir kez yenileyin, ardından önizleme ve seçimlerde senkronize veriyi kullanın.
+      button: İlanları Senkronize Et
+      no_snapshot: Henüz senkronize ilan anlık görüntüsü yok.
+      synced_summary: "{count} ilan {at} tarihinde senkronize edildi."
+      warning_template: "Son senkronizasyonunuz {age}. Uygulama dışında ilan değişikliği yaptıysanız işi çalıştırmadan önce yeniden senkronize edin."
+      confirm_template: "Son ilan senkronizasyonunuz {age}. Uygulama dışında ilan değişikliği yaptıysanız önce senkronize edin. Yine de devam edilsin mi?"
+      confirm_title: Senkronizasyon Güncellik Kontrolü
+      confirm_cancel_button: İptal
+      confirm_continue_button: Devam Et
+      never: hiç yapılmadı
+      just_now: az önce
+      minutes_ago: "{count} dakika önce"
+      hours_ago: "{count} saat önce"
+      days_ago: "{count} gün önce"
+    preview:
+      title: Etkilenecek İlanlar
+      subtitle: Bu önizleme, senkronize anlık görüntünüz ve mevcut seçiminiz kullanılarak hazırlanır.
+      loading: Önizleme yükleniyor...
+      empty: Mevcut seçime uyan ilan bulunamadı.
+      no_sync: Henüz senkronize ilan yok. Önce İlanları Senkronize Et düğmesine basın.
+      summary_template: "Etkilenecek {count} ilanın {shown} adedi gösteriliyor."
+      truncated_template: "{remaining} ilan daha gösterilmiyor."
+      unknown_title: Başlık bilgisi yok
+      in_sync_snapshot: Senkronize anlık görüntüde var
+      not_in_sync_snapshot: Senkronize anlık görüntüde yok
+      columns:
+        listing_id: İlan ID
+        title: Başlık
+        snapshot: Anlık Görüntü
+    sections:
+      listing_selection: İlan Seçimi
+      adjustment: Ayarlama
+      options: Seçenekler
+    fields:
+      selection_mode:
+        all_active: Tüm aktif ilanlar
+        filter: Başlık anahtar kelimesine göre filtrele
+        listing_ids: Belirli ilan ID'leri (CSV veya yeni satır)
+      filter_keyword:
+        label: Filtre anahtar kelimesi
+        placeholder: Anahtar kelime (filter modu seçiliyse kullanılır)
+      listing_ids_csv:
+        label: İlan ID'leri
+        placeholder: 123456789, 987654321
+      adjustment_direction:
+        label: Artır/Azalt
+        increase: Artır
+        decrease: Azalt
+      adjustment_basis:
+        label: Tür
+        amount: Tutar
+        percentage: Yüzde
+      adjustment_value:
+        label: Değer
+      min_price:
+        label: Minimum Fiyat Limiti
+      rounding:
+        label: Yuvarlama
+        standard: Standart (half-up)
+        bankers: Bankacı (half-even)
+      max_change_percent:
+        label: Maksimum Değişim Yüzdesi (opsiyonel koruma)
+        placeholder: "50"
+      dry_run:
+        label: Sadece dry run (uygulamadan hesapla ve raporla)
+
+  job_detail:
+    title_prefix: İş
+    type_label: Tür
+    status_label: Durum
+    download_csv: CSV Raporunu İndir
+    cancel_job: İşi İptal Et
+    progress_template: "{completed}/{total} tamamlandı"
+    counts_template: "{succeeded} başarılı, {failed} hatalı, {skipped} atlandı"
+    results_title: İlan Sonuçları
+    table:
+      listing_id: İlan ID
+      status: Durum
+      before: Önce
+      after: Sonra
+      error: Hata
+
+  oauth_popup:
+    title: Etsy Bağlantısı
+    success_title: Etsy bağlantısı başarılı
+    success_description: Bu pencereyi şimdi kapatabilirsiniz.
+    open_dashboard: Paneli aç
+    error_title: Etsy bağlantısı başarısız
+    error_fallback: OAuth süreci başarısız oldu.
+    return_home: Ana sayfaya dön
+    auto_close_hint: Bu açılır pencere otomatik olarak kapanacaktır.
+
+statuses:
+  queued: Sırada
+  running: Çalışıyor
+  succeeded: Başarılı
+  failed: Başarısız
+  cancelled: İptal edildi
+  skipped: Atlandı
+
+job_types:
+  price_adjust: Fiyat ayarlama

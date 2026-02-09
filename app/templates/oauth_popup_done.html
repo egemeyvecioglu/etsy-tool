@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ t("pages.oauth_popup.title") }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script>
+      (function () {
+        var payload = {
+          type: "etsy_oauth_result",
+          success: {{ success | tojson }},
+          error: {{ error_message | tojson }},
+        };
+
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.postMessage(payload, window.location.origin);
+          } catch (_err) {
+            // Ignore cross-window messaging issues and rely on fallback UI.
+          }
+        } else if (payload.success) {
+          window.location.href = "/dashboard?message_key=flash.etsy_connected";
+          return;
+        } else {
+          var fallback = new URL(window.location.origin + "/");
+          fallback.searchParams.set("error", payload.error || "OAuth failed");
+          window.location.href = fallback.toString();
+          return;
+        }
+
+        // Give the browser a brief moment to deliver postMessage before closing.
+        setTimeout(function () {
+          window.close();
+        }, 350);
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="page-backdrop" aria-hidden="true">
+      <div class="backdrop-orb orb-1"></div>
+      <div class="backdrop-orb orb-2"></div>
+      <div class="backdrop-grid"></div>
+    </div>
+    <main class="container page-stack">
+      <section class="surface">
+        {% if success %}
+        <h1>{{ t("pages.oauth_popup.success_title") }}</h1>
+        <p>{{ t("pages.oauth_popup.success_description") }}</p>
+        <a class="btn" href="/dashboard">{{ t("pages.oauth_popup.open_dashboard") }}</a>
+        {% else %}
+        <h1>{{ t("pages.oauth_popup.error_title") }}</h1>
+        <p>{{ error_message if error_message else t("pages.oauth_popup.error_fallback") }}</p>
+        <a class="btn" href="/">{{ t("pages.oauth_popup.return_home") }}</a>
+        {% endif %}
+
+        <p class="muted">{{ t("pages.oauth_popup.auto_close_hint") }}</p>
+      </section>
+    </main>
+  </body>
+</html>

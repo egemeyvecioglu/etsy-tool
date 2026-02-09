@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="surface page-intro">
+  <div>
+    <p class="eyebrow">{{ t("pages.create_job.sections.listing_selection") }} · {{ t("pages.create_job.sections.adjustment") }}</p>
+    <h1>{{ t("pages.create_job.title") }}</h1>
+    <p class="muted">{{ t("pages.create_job.subtitle") }}</p>
+  </div>
+</section>
+
+{% if not connected %}
+<section class="surface banner-note">
+  <div>
+    <strong>{{ t("pages.create_job.connect_notice") }}</strong>
+  </div>
+  <div class="actions">
+    <a class="btn" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.create_job.connect_link") }}</a>
+    {% if show_admin_bypass %}
+    <form method="post" action="/auth/admin-login" class="inline-form">
+      <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if connected %}
+<section class="surface listing-sync-panel">
+  <div class="split">
+    <div>
+      <h2>{{ t("pages.create_job.sync.title") }}</h2>
+      <p class="muted">{{ t("pages.create_job.sync.subtitle") }}</p>
+      {% if listing_sync.has_synced %}
+      <p class="sync-summary">
+        {{ t("pages.create_job.sync.synced_summary", count=listing_sync.listing_count, at=listing_sync.last_synced_display) }}
+      </p>
+      {% else %}
+      <p class="sync-summary">{{ t("pages.create_job.sync.no_snapshot") }}</p>
+      {% endif %}
+      <p class="sync-warning">
+        {{ t("pages.create_job.sync.warning_template", age=listing_sync.last_synced_age) }}
+      </p>
+    </div>
+    <form method="post" action="/listings/sync?next=/jobs/new" class="inline-form">
+      <button class="btn" type="submit">{{ t("pages.create_job.sync.button") }}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+<form
+  method="post"
+  action="/jobs/new"
+  class="modern-form"
+  data-dynamic-form="true"
+  data-connected="{{ 'true' if connected else 'false' }}"
+  data-listing-preview-endpoint="/api/listings/preview"
+  data-listing-preview-limit="8"
+  data-sync-confirm-message="{{ sync_confirm_message }}"
+>
+  {% for section in job_form_schema.sections %}
+  <section class="surface form-section" id="section-{{ section.id }}">
+    <header class="section-header">
+      <span class="section-step">{{ loop.index }}</span>
+      <h2>{{ t(section.title_key) }}</h2>
+    </header>
+
+    <div class="section-content">
+      {% for field in section.fields %}
+      <div
+        class="form-field form-field-{{ field.type }}{% if field.visible_when %} conditional-field{% endif %}"
+        {% if field.visible_when %}data-visible-when='{{ field.visible_when | tojson }}'{% endif %}
+      >
+        {% if field.type == "radio_group" %}
+        {% if field.label_key %}
+        <label class="field-label">{{ t(field.label_key) }}</label>
+        {% endif %}
+        <div class="choice-grid" role="radiogroup" aria-label="{{ field.name }}">
+          {% for option in field.options %}
+          <label class="choice-card">
+            <input
+              class="choice-input"
+              type="radio"
+              name="{{ field.name }}"
+              value="{{ option.value }}"
+              {% if option.value == field.default %}checked{% endif %}
+            />
+            <span class="choice-content">
+              <span class="choice-title">{{ t(option.label_key) }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+
+        {% elif field.type == "text" %}
+        {% if field.label_key %}
+        <label class="field-label" for="{{ field.name }}">{{ t(field.label_key) }}</label>
+        {% endif %}
+        <input
+          type="text"
+          name="{{ field.name }}"
+          id="{{ field.name }}"
+          class="field-input"
+          {% if field.placeholder_key %}placeholder="{{ t(field.placeholder_key) }}"{% endif %}
+          {% if field.default %}value="{{ field.default }}"{% endif %}
+          {% if field.required %}required{% endif %}
+        />
+
+        {% elif field.type == "textarea" %}
+        {% if field.label_key %}
+        <label class="field-label" for="{{ field.name }}">{{ t(field.label_key) }}</label>
+        {% endif %}
+        <textarea
+          name="{{ field.name }}"
+          id="{{ field.name }}"
+          class="field-input"
+          rows="{{ field.rows if field.rows else 4 }}"
+          {% if field.placeholder_key %}placeholder="{{ t(field.placeholder_key) }}"{% endif %}
+          {% if field.required %}required{% endif %}
+        >{% if field.default %}{{ field.default }}{% endif %}</textarea>
+
+        {% elif field.type == "select" %}
+        {% if field.label_key %}
+        <label class="field-label" for="{{ field.name }}">{{ t(field.label_key) }}</label>
+        {% endif %}
+        <select class="field-input" name="{{ field.name }}" id="{{ field.name }}" {% if field.required %}required{% endif %}>
+          {% for option in field.options %}
+          <option value="{{ option.value }}" {% if option.value == field.default %}selected{% endif %}>
+            {{ t(option.label_key) }}
+          </option>
+          {% endfor %}
+        </select>
+
+        {% elif field.type == "number" %}
+        {% if field.label_key %}
+        <label class="field-label" for="{{ field.name }}">{{ t(field.label_key) }}</label>
+        {% endif %}
+        <input
+          type="number"
+          name="{{ field.name }}"
+          id="{{ field.name }}"
+          class="field-input"
+          {% if field.step %}step="{{ field.step }}"{% endif %}
+          {% if field.min is not none %}min="{{ field.min }}"{% endif %}
+          {% if field.max is not none %}max="{{ field.max }}"{% endif %}
+          {% if field.placeholder_key %}placeholder="{{ t(field.placeholder_key) }}"{% endif %}
+          {% if field.default is not none %}value="{{ field.default }}"{% endif %}
+          {% if field.required %}required{% endif %}
+        />
+
+        {% elif field.type == "checkbox" %}
+        <label class="toggle-field" for="{{ field.name }}">
+          <input
+            type="checkbox"
+            name="{{ field.name }}"
+            id="{{ field.name }}"
+            value="{{ field.checked_value if field.checked_value else 'true' }}"
+            {% if field.default %}checked{% endif %}
+          />
+          <span class="toggle-knob" aria-hidden="true"></span>
+          <span class="toggle-label">{{ t(field.label_key) if field.label_key else field.name }}</span>
+        </label>
+        {% endif %}
+
+        {% if field.help_key %}
+        <p class="field-help">{{ t(field.help_key) }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if section.id == "listing_selection" %}
+    <div
+      class="listing-preview"
+      data-listing-preview="true"
+      data-text-loading="{{ t('pages.create_job.preview.loading') }}"
+      data-text-empty="{{ t('pages.create_job.preview.empty') }}"
+      data-text-no-sync="{{ t('pages.create_job.preview.no_sync') }}"
+      data-text-unknown-title="{{ t('pages.create_job.preview.unknown_title') }}"
+      data-text-summary-template="{{ t('pages.create_job.preview.summary_template') }}"
+      data-text-truncated-template="{{ t('pages.create_job.preview.truncated_template') }}"
+      data-text-in-sync="{{ t('pages.create_job.preview.in_sync_snapshot') }}"
+      data-text-not-in-sync="{{ t('pages.create_job.preview.not_in_sync_snapshot') }}"
+    >
+      <div class="split listing-preview-head">
+        <div>
+          <h3>{{ t("pages.create_job.preview.title") }}</h3>
+          <p class="muted">{{ t("pages.create_job.preview.subtitle") }}</p>
+        </div>
+        <p class="muted listing-preview-meta" data-listing-preview-meta>
+          {% if listing_sync.has_synced %}
+          {{ t("pages.create_job.preview.summary_template", shown=synced_preview_rows|length, count=listing_sync.listing_count) }}
+          {% else %}
+          {{ t("pages.create_job.preview.no_sync") }}
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t("pages.create_job.preview.columns.listing_id") }}</th>
+              <th>{{ t("pages.create_job.preview.columns.title") }}</th>
+              <th>{{ t("pages.create_job.preview.columns.snapshot") }}</th>
+            </tr>
+          </thead>
+          <tbody data-listing-preview-body>
+            {% if synced_preview_rows %}
+            {% for row in synced_preview_rows %}
+            <tr>
+              <td>{{ row.listing_id }}</td>
+              <td>{{ row.title if row.title else t("pages.create_job.preview.unknown_title") }}</td>
+              <td>
+                {% if row.in_sync_snapshot %}
+                <span class="pill succeeded">{{ t("pages.create_job.preview.in_sync_snapshot") }}</span>
+                {% else %}
+                <span class="pill failed">{{ t("pages.create_job.preview.not_in_sync_snapshot") }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="3" class="muted">{{ t("pages.create_job.preview.no_sync") }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <div class="submit-wrap" data-submit-wrap>
+    {% set sync_confirm_title = t("pages.create_job.sync.confirm_title") %}
+    {% set sync_confirm_cancel_button = t("pages.create_job.sync.confirm_cancel_button") %}
+    {% set sync_confirm_continue_button = t("pages.create_job.sync.confirm_continue_button") %}
+    {% set confirm_title_fallback = "Senkronizasyon Güncellik Kontrolü" if current_locale == "tr" else "Sync Freshness Check" %}
+    {% set confirm_cancel_fallback = "İptal" if current_locale == "tr" else "Cancel" %}
+    {% set confirm_continue_fallback = "Devam Et" if current_locale == "tr" else "Continue" %}
+    <div class="submit-confirm is-hidden" data-sync-confirm-panel>
+      <strong class="submit-confirm-title">
+        {{
+          sync_confirm_title
+          if sync_confirm_title != "pages.create_job.sync.confirm_title"
+          else confirm_title_fallback
+        }}
+      </strong>
+      <p class="submit-confirm-text" data-sync-confirm-text>{{ sync_confirm_message }}</p>
+      <div class="actions submit-confirm-actions">
+        <button class="ghost" type="button" data-sync-confirm-cancel>
+          {{
+            sync_confirm_cancel_button
+            if sync_confirm_cancel_button != "pages.create_job.sync.confirm_cancel_button"
+            else confirm_cancel_fallback
+          }}
+        </button>
+        <button class="btn" type="button" data-sync-confirm-continue>
+          {{
+            sync_confirm_continue_button
+            if sync_confirm_continue_button != "pages.create_job.sync.confirm_continue_button"
+            else confirm_continue_fallback
+          }}
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-large run-job-button" type="submit" data-run-job-button {% if not connected %}disabled{% endif %}>
+      {{ t("pages.create_job.run_button") }}
+    </button>
+  </div>
+</form>
+
+<script src="/static/create_job.js"></script>
+{% endblock %}

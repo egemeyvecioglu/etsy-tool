@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="surface">
+  <div class="split dashboard-head">
+    <div>
+      <h1>{{ t("pages.dashboard.title") }}</h1>
+      <p class="muted">{{ t("pages.dashboard.subtitle") }}</p>
+    </div>
+    <a class="btn" href="/jobs/new">{{ t("pages.dashboard.create_button") }}</a>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-card">
+      <span>{{ t("pages.dashboard.internal_user") }}</span>
+      <strong>#{{ user.id }}</strong>
+    </div>
+    <div class="meta-card">
+      <span>{{ t("pages.dashboard.etsy_user") }}</span>
+      <strong>{{ user.etsy_user_id if user.etsy_user_id else t("common.not_connected") }}</strong>
+    </div>
+    <div class="meta-card">
+      <span>{{ t("pages.dashboard.etsy_shop") }}</span>
+      <strong>{{ user.etsy_shop_id if user.etsy_shop_id else t("common.not_connected") }}</strong>
+    </div>
+  </div>
+
+  {% if not connected %}
+  <div class="banner-note compact">
+    <div>
+      <strong>{{ t("pages.dashboard.connect_notice") }}</strong>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.dashboard.connect_link") }}</a>
+      {% if show_admin_bypass %}
+      <form method="post" action="/auth/admin-login" class="inline-form">
+        <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="surface">
+  <h2>{{ t("pages.dashboard.recent_jobs") }}</h2>
+  {% if job_summaries %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("pages.dashboard.table.job") }}</th>
+          <th>{{ t("pages.dashboard.table.status") }}</th>
+          <th>{{ t("pages.dashboard.table.progress") }}</th>
+          <th>{{ t("pages.dashboard.table.created") }}</th>
+          <th>{{ t("pages.dashboard.table.actions") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in job_summaries %}
+        <tr>
+          <td>#{{ job.id }}</td>
+          <td><span class="pill {{ job.status|lower }}">{{ status_label(job.status) }}</span></td>
+          <td>{{ job.completed_items }}/{{ job.total_items }}</td>
+          <td>{{ job.created_at_display if job.created_at_display else job.created_at }}</td>
+          <td><a class="text-link" href="/jobs/{{ job.id }}">{{ t("pages.dashboard.table.view") }}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">{{ t("pages.dashboard.no_jobs") }}</p>
+  {% endif %}
+</section>
+{% endblock %}

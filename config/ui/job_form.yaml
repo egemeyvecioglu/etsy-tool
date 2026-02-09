@@ -1,0 +1,66 @@
+sections:
+  - id: listing_selection
+    title_key: pages.create_job.sections.listing_selection
+    fields:
+      - type: radio_group
+        name: selection_mode
+        default: all_active
+        options:
+          - value: all_active
+            label_key: pages.create_job.fields.selection_mode.all_active
+          - value: filter
+            label_key: pages.create_job.fields.selection_mode.filter
+          - value: listing_ids
+            label_key: pages.create_job.fields.selection_mode.listing_ids
+
+      - type: text
+        name: filter_keyword
+        label_key: pages.create_job.fields.filter_keyword.label
+        placeholder_key: pages.create_job.fields.filter_keyword.placeholder
+        visible_when:
+          selection_mode:
+            - filter
+
+      - type: textarea
+        name: listing_ids_csv
+        label_key: pages.create_job.fields.listing_ids_csv.label
+        placeholder_key: pages.create_job.fields.listing_ids_csv.placeholder
+        rows: 4
+        visible_when:
+          selection_mode:
+            - listing_ids
+
+  - id: adjustment
+    title_key: pages.create_job.sections.adjustment
+    fields:
+      - type: radio_group
+        name: adjustment_direction
+        label_key: pages.create_job.fields.adjustment_direction.label
+        default: increase
+        options:
+          - value: increase
+            label_key: pages.create_job.fields.adjustment_direction.increase
+          - value: decrease
+            label_key: pages.create_job.fields.adjustment_direction.decrease
+
+      - type: radio_group
+        name: adjustment_basis
+        label_key: pages.create_job.fields.adjustment_basis.label
+        default: amount
+        options:
+          - value: amount
+            label_key: pages.create_job.fields.adjustment_basis.amount
+          - value: percentage
+            label_key: pages.create_job.fields.adjustment_basis.percentage
+
+      - type: number
+        name: adjustment_value
+        label_key: pages.create_job.fields.adjustment_value.label
+        step: "0.01"
+        min: "0"
+        required: true
+
+      - type: checkbox
+        name: dry_run
+        label_key: pages.create_job.fields.dry_run.label
+        checked_value: "true"

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% if page_title_key %}
+      {{ t(page_title_key) }} - {{ t("common.app_name") }}
+      {% else %}
+      {{ t("common.app_name") }}
+      {% endif %}
+    </title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-backdrop" aria-hidden="true">
+      <div class="backdrop-orb orb-1"></div>
+      <div class="backdrop-orb orb-2"></div>
+      <div class="backdrop-grid"></div>
+    </div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/dashboard">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span class="brand-text">{{ t("common.app_name") }}</span>
+        </a>
+
+        <nav class="main-nav">
+          <a href="/dashboard" class="{% if current_path.startswith('/dashboard') %}active{% endif %}">
+            {{ t("common.dashboard") }}
+          </a>
+          <a href="/jobs/new" class="{% if current_path.startswith('/jobs/new') %}active{% endif %}">
+            {{ t("common.create_job") }}
+          </a>
+        </nav>
+
+        <div class="header-actions">
+          <details class="lang-dropdown">
+            <summary aria-label="{{ t('common.language') }}" title="{{ t('common.language') }}">
+              <span class="lang-summary-icon" aria-hidden="true">🌐</span>
+              <span class="lang-summary-current" aria-hidden="true">{{ current_language_icon }}</span>
+              <span class="sr-only">{{ t("common.language") }}</span>
+            </summary>
+            <div class="lang-dropdown-menu">
+              {% for language in language_links %}
+              <a href="{{ language.url }}" class="{% if language.active %}active{% endif %}">
+                <span class="lang-item-icon" aria-hidden="true">{{ language.icon }}</span>
+                <span>{{ language.label }}</span>
+              </a>
+              {% endfor %}
+            </div>
+          </details>
+
+          {% if show_sign_out %}
+          <form method="post" action="/auth/logout">
+            <button class="ghost" type="submit">{{ t("common.sign_out") }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    <main class="container page-stack">
+      {% if message_key %}
+      <div class="alert success">{{ t(message_key) }}</div>
+      {% elif message %}
+      <div class="alert success">{{ message }}</div>
+      {% endif %}
+
+      {% if error_key %}
+      <div class="alert error">{{ t(error_key) }}</div>
+      {% elif error %}
+      <div class="alert error">{{ error }}</div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/oauth_popup.js"></script>
+  </body>
+</html>

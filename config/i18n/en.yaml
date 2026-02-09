@@ -1,0 +1,166 @@
+languages:
+  en: English
+  tr: Turkish
+
+common:
+  app_name: Etsy Tool
+  dashboard: Dashboard
+  create_job: Create Job
+  sign_out: Sign Out
+  connected: Connected
+  not_connected: Not connected
+  not_available: N/A
+  language: Language
+  admin_bypass_login: Admin Login (Test Mode)
+
+flash:
+  signed_out: Signed out
+  connect_first: Connect your Etsy account first
+  etsy_connected: Etsy account connected
+  invalid_oauth_state: Invalid OAuth callback state
+  admin_bypass_enabled: Admin test login enabled
+  listings_synced: Listings synced successfully
+
+pages:
+  index:
+    title: Connect Etsy
+    eyebrow: Bulk Variation Price Updates
+    heading: Remote Seller Tool
+    description: Connect your Etsy account, configure a price adjustment rule, and run bulk updates across all variation offerings with dry-run previews and downloadable reports.
+    open_dashboard: Open Dashboard
+    connect_etsy: Connect Etsy Account
+    status_label: Status
+    oauth_mode_label: OAuth Mode
+    oauth_mode_value: Authorization Code + PKCE
+    execution_label: Execution
+    execution_value: Async Worker
+
+  dashboard:
+    title: Dashboard
+    subtitle: Linked account and bulk update job history.
+    create_button: Create Price Update Job
+    internal_user: Internal User
+    etsy_user: Etsy User
+    etsy_shop: Etsy Shop
+    connect_notice: Etsy is not connected yet.
+    connect_link: Connect your Etsy account
+    recent_jobs: Recent Jobs
+    no_jobs: No jobs yet.
+    table:
+      job: Job
+      status: Status
+      progress: Progress
+      created: Created
+      actions: Actions
+      view: View
+
+  create_job:
+    title: Create Bulk Price Update Job
+    subtitle: Increase or decrease all variation offering prices by amount or percentage.
+    connect_notice: Connect Etsy first to create jobs.
+    connect_link: Connect Etsy Account
+    run_button: Run Job
+    sync:
+      title: Listings Sync
+      subtitle: Refresh active listings once, then reuse synced data for previews and selections.
+      button: Sync Listings
+      no_snapshot: No synced listing snapshot yet.
+      synced_summary: "{count} listings synced at {at}."
+      warning_template: "Your latest sync was {age}. If you changed listings outside this app, sync again before running a job."
+      confirm_template: "Your latest listings sync was {age}. If you changed listings outside this app, sync first. Continue anyway?"
+      confirm_title: Sync Freshness Check
+      confirm_cancel_button: Cancel
+      confirm_continue_button: Continue
+      never: never
+      just_now: just now
+      minutes_ago: "{count} minutes ago"
+      hours_ago: "{count} hours ago"
+      days_ago: "{count} days ago"
+    preview:
+      title: Listings That Will Be Affected
+      subtitle: This preview uses your synced snapshot and current selection.
+      loading: Loading preview...
+      empty: No listings match the current selection.
+      no_sync: No synced listings found yet. Click Sync Listings first.
+      summary_template: "Showing {shown} of {count} affected listings."
+      truncated_template: "{remaining} more not shown."
+      unknown_title: Title unavailable
+      in_sync_snapshot: In sync snapshot
+      not_in_sync_snapshot: Not in sync snapshot
+      columns:
+        listing_id: Listing ID
+        title: Title
+        snapshot: Snapshot
+    sections:
+      listing_selection: Listing Selection
+      adjustment: Adjustment
+      options: Options
+    fields:
+      selection_mode:
+        all_active: All active listings
+        filter: Filter by title keyword
+        listing_ids: Specific listing IDs (CSV or newline)
+      filter_keyword:
+        label: Filter keyword
+        placeholder: Keyword (used when filter mode selected)
+      listing_ids_csv:
+        label: Listing IDs
+        placeholder: 123456789, 987654321
+      adjustment_direction:
+        label: Increase/Decrease
+        increase: Increase
+        decrease: Decrease
+      adjustment_basis:
+        label: By
+        amount: Amount
+        percentage: Percentage
+      adjustment_value:
+        label: Value
+      min_price:
+        label: Minimum Price Floor
+      rounding:
+        label: Rounding
+        standard: Standard (half-up)
+        bankers: Bankers (half-even)
+      max_change_percent:
+        label: Max Change Percent (optional guardrail)
+        placeholder: "50"
+      dry_run:
+        label: Dry run only (calculate and report without applying)
+
+  job_detail:
+    title_prefix: Job
+    type_label: Type
+    status_label: Status
+    download_csv: Download CSV Report
+    cancel_job: Cancel Job
+    progress_template: "{completed}/{total} completed"
+    counts_template: "{succeeded} succeeded, {failed} failed, {skipped} skipped"
+    results_title: Listing Results
+    table:
+      listing_id: Listing ID
+      status: Status
+      before: Before
+      after: After
+      error: Error
+
+  oauth_popup:
+    title: Etsy Connection
+    success_title: Etsy connection successful
+    success_description: You can close this window now.
+    open_dashboard: Open dashboard
+    error_title: Etsy connection failed
+    error_fallback: OAuth process failed.
+    return_home: Return to home page
+    auto_close_hint: This popup will close automatically.
+
+statuses:
+  queued: Queued
+  running: Running
+  succeeded: Succeeded
+  failed: Failed
+  cancelled: Cancelled
+  skipped: Skipped
+
+job_types:
+  price_adjust: Price adjust
