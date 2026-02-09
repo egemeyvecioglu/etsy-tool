@@ -21,13 +21,19 @@
   var previewMeta = listingPreview ? listingPreview.querySelector("[data-listing-preview-meta]") : null;
   var previewEndpoint = form.getAttribute("data-listing-preview-endpoint") || "";
   var previewLimit = Number(form.getAttribute("data-listing-preview-limit") || "8");
+  var requiredMessage = (form.getAttribute("data-required-message") || "").trim();
+  var numberMessage = (form.getAttribute("data-number-message") || "").trim();
+  var minMessageTemplate = (form.getAttribute("data-min-message-template") || "").trim();
+  var stepMessage = (form.getAttribute("data-step-message") || "").trim();
+  var maxPercentDecrease = Number(form.getAttribute("data-max-percent-decrease") || "100");
+  var percentDecreaseGuardrailMessage = (form.getAttribute("data-percent-decrease-guardrail-message") || "").trim();
   var isConnected = form.getAttribute("data-connected") === "true";
-  var submitWrap = form.querySelector("[data-submit-wrap]");
   var runJobButton = form.querySelector("[data-run-job-button]");
-  var confirmPanel = form.querySelector("[data-sync-confirm-panel]");
-  var confirmText = form.querySelector("[data-sync-confirm-text]");
-  var confirmCancelButton = form.querySelector("[data-sync-confirm-cancel]");
-  var confirmContinueButton = form.querySelector("[data-sync-confirm-continue]");
+  var confirmModal = document.querySelector("[data-sync-confirm-modal]");
+  var confirmBackdrop = document.querySelector("[data-sync-confirm-backdrop]");
+  var confirmText = document.querySelector("[data-sync-confirm-text]");
+  var confirmCancelButton = document.querySelector("[data-sync-confirm-cancel]");
+  var confirmContinueButton = document.querySelector("[data-sync-confirm-continue]");
   var lastPreviewRequestId = 0;
   var previewDebounceTimer = null;
   var syncConfirmAcknowledged = false;
@@ -186,6 +192,50 @@
     });
   }
 
+  function validateAdjustmentGuardrail() {
+    var controls = controlsByName("adjustment_value");
+    if (!controls.length) {
+      return true;
+    }
+
+    var valueControl = controls[0];
+    if (!valueControl || typeof valueControl.setCustomValidity !== "function") {
+      return true;
+    }
+
+    valueControl.setCustomValidity("");
+
+    var basis = String(controlValue("adjustment_basis") || "amount").toLowerCase();
+    var direction = String(controlValue("adjustment_direction") || "increase").toLowerCase();
+    if (
+      basis !== "percentage" ||
+      direction !== "decrease" ||
+      !Number.isFinite(maxPercentDecrease)
+    ) {
+      return true;
+    }
+
+    var rawValue = String(valueControl.value || "").trim();
+    if (!rawValue) {
+      return true;
+    }
+
+    var numericValue = Number(rawValue);
+    if (!Number.isFinite(numericValue)) {
+      return true;
+    }
+
+    if (numericValue > maxPercentDecrease) {
+      valueControl.setCustomValidity(
+        percentDecreaseGuardrailMessage ||
+          ("Percent decrease cannot exceed " + String(maxPercentDecrease) + "%.")
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   function renderPreviewRows(payload, mode) {
     if (!previewBody || !previewMeta) {
       return;
@@ -194,12 +244,14 @@
     var rows = Array.isArray(payload.results) ? payload.results : [];
     var totalCount = Number(payload.count || 0);
     var hasSynced = Boolean(payload.has_synced);
+    var syncStale = Boolean(payload.sync_stale);
     var unknownTitle = tAttr("data-text-unknown-title");
 
     if (!hasSynced && mode !== "listing_ids") {
-      previewMeta.textContent = tAttr("data-text-no-sync");
+      var noSyncText = syncStale ? tAttr("data-text-sync-stale") : tAttr("data-text-no-sync");
+      previewMeta.textContent = noSyncText;
       previewBody.innerHTML =
-        '<tr><td colspan="3" class="muted">' + escapeHtml(tAttr("data-text-no-sync")) + "</td></tr>";
+        '<tr><td colspan="3" class="muted">' + escapeHtml(noSyncText) + "</td></tr>";
       return;
     }
 
@@ -313,35 +365,28 @@
     previewDebounceTimer = window.setTimeout(refreshListingPreview, 220);
   }
 
-  function hideSyncConfirmPanel() {
-    if (!confirmPanel) {
+  function hideSyncConfirmModal() {
+    if (!confirmModal) {
       return;
     }
-    confirmPanel.classList.add("is-hidden");
-    if (submitWrap) {
-      submitWrap.classList.remove("confirm-open");
-    }
-    if (runJobButton) {
-      runJobButton.classList.remove("is-hidden");
-    }
+    confirmModal.classList.remove("is-open");
+    confirmModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
   }
 
-  function isSyncConfirmOpen() {
-    return Boolean(confirmPanel && !confirmPanel.classList.contains("is-hidden"));
+  function isSyncConfirmModalOpen() {
+    return Boolean(confirmModal && confirmModal.classList.contains("is-open"));
   }
 
-  function showSyncConfirmPanel(message) {
-    if (!confirmPanel || !confirmText) {
+  function showSyncConfirmModal(message) {
+    if (!confirmModal || !confirmText) {
       return;
     }
+
     confirmText.textContent = message;
-    confirmPanel.classList.remove("is-hidden");
-    if (submitWrap) {
-      submitWrap.classList.add("confirm-open");
-    }
-    if (runJobButton) {
-      runJobButton.classList.add("is-hidden");
-    }
+    confirmModal.classList.add("is-open");
+    confirmModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
     if (confirmContinueButton) {
       confirmContinueButton.focus();
     }
@@ -349,7 +394,7 @@
 
   function submitAfterConfirmation() {
     syncConfirmAcknowledged = true;
-    hideSyncConfirmPanel();
+    hideSyncConfirmModal();
 
     if (typeof form.requestSubmit === "function") {
       if (runJobButton) {
@@ -364,6 +409,14 @@
   }
 
   function maybeConfirmSyncAge(event) {
+    if (!validateAdjustmentGuardrail()) {
+      event.preventDefault();
+      if (typeof form.reportValidity === "function") {
+        form.reportValidity();
+      }
+      return;
+    }
+
     if (!isConnected) {
       return;
     }
@@ -379,16 +432,76 @@
     }
 
     event.preventDefault();
-    showSyncConfirmPanel(message);
+    showSyncConfirmModal(message);
   }
 
-  form.addEventListener("change", function () {
+  form.addEventListener(
+    "invalid",
+    function (event) {
+      var target = event.target;
+      if (
+        !target ||
+        typeof target.setCustomValidity !== "function" ||
+        !target.validity
+      ) {
+        return;
+      }
+
+      if (target.validity.customError) {
+        return;
+      }
+
+      if (target.validity.valueMissing) {
+        target.setCustomValidity(requiredMessage || "");
+        return;
+      }
+
+      if (target.validity.badInput) {
+        target.setCustomValidity(numberMessage || "");
+        return;
+      }
+
+      if (target.validity.rangeUnderflow) {
+        var minValue = target.getAttribute ? target.getAttribute("min") : "";
+        if (minMessageTemplate && minValue !== null && minValue !== "") {
+          target.setCustomValidity(
+            formatTemplate(minMessageTemplate, {
+              min: minValue,
+            })
+          );
+        } else {
+          target.setCustomValidity(numberMessage || "");
+        }
+        return;
+      }
+
+      if (target.validity.stepMismatch) {
+        target.setCustomValidity(stepMessage || numberMessage || "");
+        return;
+      }
+
+      target.setCustomValidity("");
+    },
+    true
+  );
+
+  form.addEventListener("change", function (event) {
+    var target = event.target;
+    if (target && typeof target.setCustomValidity === "function") {
+      target.setCustomValidity("");
+    }
     applyVisibilityRules();
+    validateAdjustmentGuardrail();
     debouncePreviewRefresh();
     syncConfirmAcknowledged = false;
   });
-  form.addEventListener("input", function () {
+  form.addEventListener("input", function (event) {
+    var target = event.target;
+    if (target && typeof target.setCustomValidity === "function") {
+      target.setCustomValidity("");
+    }
     applyVisibilityRules();
+    validateAdjustmentGuardrail();
     debouncePreviewRefresh();
     syncConfirmAcknowledged = false;
   });
@@ -397,7 +510,7 @@
   if (confirmCancelButton) {
     confirmCancelButton.addEventListener("click", function () {
       syncConfirmAcknowledged = false;
-      hideSyncConfirmPanel();
+      hideSyncConfirmModal();
     });
   }
 
@@ -405,10 +518,25 @@
     confirmContinueButton.addEventListener("click", submitAfterConfirmation);
   }
 
+  if (confirmBackdrop) {
+    confirmBackdrop.addEventListener("click", function () {
+      syncConfirmAcknowledged = false;
+      hideSyncConfirmModal();
+    });
+  }
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape" || !isSyncConfirmModalOpen()) {
+      return;
+    }
+    syncConfirmAcknowledged = false;
+    hideSyncConfirmModal();
+  });
+
   document.addEventListener(
     "pointerdown",
     function (event) {
-      if (!isSyncConfirmOpen()) {
+      if (!isSyncConfirmModalOpen()) {
         return;
       }
 
@@ -417,17 +545,18 @@
         return;
       }
 
-      if (confirmPanel && confirmPanel.contains(target)) {
+      if (confirmModal && confirmModal.contains(target)) {
         return;
       }
 
-      hideSyncConfirmPanel();
+      hideSyncConfirmModal();
       syncConfirmAcknowledged = false;
     },
     true
   );
 
   applyVisibilityRules();
+  validateAdjustmentGuardrail();
   refreshListingPreview();
-  hideSyncConfirmPanel();
+  hideSyncConfirmModal();
 })();

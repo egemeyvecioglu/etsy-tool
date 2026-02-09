@@ -29,13 +29,21 @@ class EtsyClient:
 
         self._http.close()
 
-    def _headers(self, access_token: str | None = None) -> dict[str, str]:
-        """Build common API headers for Etsy requests."""
+    def _headers(
+        self,
+        *,
+        access_token: str | None = None,
+        content_type: str = "application/json",
+        use_api_key: bool = True,
+    ) -> dict[str, str]:
+        """Build request headers for Etsy API/OAuth requests."""
 
         headers = {
-            "Content-Type": "application/json",
-            "x-api-key": self.settings.etsy_client_id,
+            "Accept": "application/json",
+            "Content-Type": content_type,
         }
+        if use_api_key:
+            headers["x-api-key"] = self.settings.etsy_client_id
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
         return headers
@@ -47,12 +55,21 @@ class EtsyClient:
         *,
         access_token: str | None = None,
         json: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
         use_api_key: bool = True,
     ) -> dict[str, Any]:
         """Execute an Etsy request with retry/backoff on transient errors."""
 
-        headers = self._headers(access_token) if use_api_key else {"Content-Type": "application/json"}
+        if json is not None and data is not None:
+            raise EtsyAPIError("Request cannot include both JSON and form payloads")
+
+        content_type = "application/x-www-form-urlencoded" if data is not None else "application/json"
+        headers = self._headers(
+            access_token=access_token,
+            content_type=content_type,
+            use_api_key=use_api_key,
+        )
 
         retryable_statuses = {429, 500, 502, 503, 504}
         last_error: Exception | None = None
@@ -64,6 +81,7 @@ class EtsyClient:
                     url=url,
                     headers=headers,
                     json=json,
+                    data=data,
                     params=params,
                 )
             except httpx.RequestError as exc:
@@ -125,8 +143,7 @@ class EtsyClient:
         return self._request(
             "POST",
             self.settings.etsy_token_url,
-            json=payload,
-            use_api_key=False,
+            data=payload,
         )
 
     def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
@@ -143,8 +160,7 @@ class EtsyClient:
         return self._request(
             "POST",
             self.settings.etsy_token_url,
-            json=payload,
-            use_api_key=False,
+            data=payload,
         )
 
     def get_current_etsy_user_id(self, access_token: str) -> str:

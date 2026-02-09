@@ -14,7 +14,7 @@
     <strong>{{ t("pages.create_job.connect_notice") }}</strong>
   </div>
   <div class="actions">
-    <a class="btn" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.create_job.connect_link") }}</a>
+    <a class="btn" href="/auth/etsy/start?accept_terms=1" data-oauth-popup="true">{{ t("pages.create_job.connect_link") }}</a>
     {% if show_admin_bypass %}
     <form method="post" action="/auth/admin-login" class="inline-form">
       <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>
@@ -37,9 +37,21 @@
       {% else %}
       <p class="sync-summary">{{ t("pages.create_job.sync.no_snapshot") }}</p>
       {% endif %}
+      {% if listing_sync.is_stale %}
+      <p class="sync-warning sync-warning-critical">
+        {{
+          t(
+            "pages.create_job.sync.stale_blocked_template",
+            age=listing_sync.last_synced_age,
+            max_age=listing_sync.max_age_hours
+          )
+        }}
+      </p>
+      {% else %}
       <p class="sync-warning">
         {{ t("pages.create_job.sync.warning_template", age=listing_sync.last_synced_age) }}
       </p>
+      {% endif %}
     </div>
     <form method="post" action="/listings/sync?next=/jobs/new" class="inline-form">
       <button class="btn" type="submit">{{ t("pages.create_job.sync.button") }}</button>
@@ -56,6 +68,12 @@
   data-connected="{{ 'true' if connected else 'false' }}"
   data-listing-preview-endpoint="/api/listings/preview"
   data-listing-preview-limit="8"
+  data-required-message="{{ t('common.validation_required') }}"
+  data-number-message="{{ t('common.validation_number') }}"
+  data-min-message-template="{{ t('common.validation_min_template') }}"
+  data-step-message="{{ t('common.validation_step') }}"
+  data-max-percent-decrease="100"
+  data-percent-decrease-guardrail-message="{{ t('pages.create_job.validation.percent_guardrail', max=100) }}"
   data-sync-confirm-message="{{ sync_confirm_message }}"
 >
   {% for section in job_form_schema.sections %}
@@ -176,6 +194,7 @@
       data-text-loading="{{ t('pages.create_job.preview.loading') }}"
       data-text-empty="{{ t('pages.create_job.preview.empty') }}"
       data-text-no-sync="{{ t('pages.create_job.preview.no_sync') }}"
+      data-text-sync-stale="{{ t('pages.create_job.preview.sync_stale') }}"
       data-text-unknown-title="{{ t('pages.create_job.preview.unknown_title') }}"
       data-text-summary-template="{{ t('pages.create_job.preview.summary_template') }}"
       data-text-truncated-template="{{ t('pages.create_job.preview.truncated_template') }}"
@@ -234,44 +253,47 @@
   {% endfor %}
 
   <div class="submit-wrap" data-submit-wrap>
-    {% set sync_confirm_title = t("pages.create_job.sync.confirm_title") %}
-    {% set sync_confirm_cancel_button = t("pages.create_job.sync.confirm_cancel_button") %}
-    {% set sync_confirm_continue_button = t("pages.create_job.sync.confirm_continue_button") %}
-    {% set confirm_title_fallback = "Senkronizasyon Güncellik Kontrolü" if current_locale == "tr" else "Sync Freshness Check" %}
-    {% set confirm_cancel_fallback = "İptal" if current_locale == "tr" else "Cancel" %}
-    {% set confirm_continue_fallback = "Devam Et" if current_locale == "tr" else "Continue" %}
-    <div class="submit-confirm is-hidden" data-sync-confirm-panel>
-      <strong class="submit-confirm-title">
-        {{
-          sync_confirm_title
-          if sync_confirm_title != "pages.create_job.sync.confirm_title"
-          else confirm_title_fallback
-        }}
-      </strong>
-      <p class="submit-confirm-text" data-sync-confirm-text>{{ sync_confirm_message }}</p>
-      <div class="actions submit-confirm-actions">
-        <button class="ghost" type="button" data-sync-confirm-cancel>
-          {{
-            sync_confirm_cancel_button
-            if sync_confirm_cancel_button != "pages.create_job.sync.confirm_cancel_button"
-            else confirm_cancel_fallback
-          }}
-        </button>
-        <button class="btn" type="button" data-sync-confirm-continue>
-          {{
-            sync_confirm_continue_button
-            if sync_confirm_continue_button != "pages.create_job.sync.confirm_continue_button"
-            else confirm_continue_fallback
-          }}
-        </button>
-      </div>
-    </div>
-
     <button class="btn btn-large run-job-button" type="submit" data-run-job-button {% if not connected %}disabled{% endif %}>
       {{ t("pages.create_job.run_button") }}
     </button>
   </div>
 </form>
+
+{% set sync_confirm_title = t("pages.create_job.sync.confirm_title") %}
+{% set sync_confirm_cancel_button = t("pages.create_job.sync.confirm_cancel_button") %}
+{% set sync_confirm_continue_button = t("pages.create_job.sync.confirm_continue_button") %}
+{% set confirm_title_fallback = "Senkronizasyon Güncellik Kontrolü" if current_locale == "tr" else "Sync Freshness Check" %}
+{% set confirm_cancel_fallback = "İptal" if current_locale == "tr" else "Cancel" %}
+{% set confirm_continue_fallback = "Devam Et" if current_locale == "tr" else "Continue" %}
+<div class="confirm-modal" data-sync-confirm-modal aria-hidden="true">
+  <div class="confirm-modal-backdrop" data-sync-confirm-backdrop></div>
+  <section class="confirm-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="sync-confirm-title">
+    <strong class="submit-confirm-title" id="sync-confirm-title">
+      {{
+        sync_confirm_title
+        if sync_confirm_title != "pages.create_job.sync.confirm_title"
+        else confirm_title_fallback
+      }}
+    </strong>
+    <p class="submit-confirm-text" data-sync-confirm-text>{{ sync_confirm_message }}</p>
+    <div class="actions submit-confirm-actions">
+      <button class="ghost" type="button" data-sync-confirm-cancel>
+        {{
+          sync_confirm_cancel_button
+          if sync_confirm_cancel_button != "pages.create_job.sync.confirm_cancel_button"
+          else confirm_cancel_fallback
+        }}
+      </button>
+      <button class="btn" type="button" data-sync-confirm-continue>
+        {{
+          sync_confirm_continue_button
+          if sync_confirm_continue_button != "pages.create_job.sync.confirm_continue_button"
+          else confirm_continue_fallback
+        }}
+      </button>
+    </div>
+  </section>
+</div>
 
 <script src="/static/create_job.js"></script>
 {% endblock %}

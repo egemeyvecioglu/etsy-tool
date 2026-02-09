@@ -7,16 +7,24 @@ common:
   dashboard: Dashboard
   create_job: Create Job
   sign_out: Sign Out
+  terms_of_use: Terms of Use
+  privacy_policy: Privacy Policy
   connected: Connected
   not_connected: Not connected
   not_available: N/A
   language: Language
   admin_bypass_login: Admin Login (Test Mode)
+  validation_required: Please fill out this field.
+  validation_number: Please enter a valid number.
+  validation_min_template: Value must be at least {min}.
+  validation_step: Please enter a valid value.
 
 flash:
   signed_out: Signed out
   connect_first: Connect your Etsy account first
+  accept_terms_required: Accept the Terms of Use and Privacy Policy before connecting Etsy.
   etsy_connected: Etsy account connected
+  etsy_disconnected: Etsy account disconnected. Your saved Etsy connection data has been removed.
   invalid_oauth_state: Invalid OAuth callback state
   admin_bypass_enabled: Admin test login enabled
   listings_synced: Listings synced successfully
@@ -29,6 +37,8 @@ pages:
     description: Connect your Etsy account, configure a price adjustment rule, and run bulk updates across all variation offerings with dry-run previews and downloadable reports.
     open_dashboard: Open Dashboard
     connect_etsy: Connect Etsy Account
+    legal_notice_prefix: By connecting, you agree to the
+    legal_notice_middle: and
     status_label: Status
     oauth_mode_label: OAuth Mode
     oauth_mode_value: Authorization Code + PKCE
@@ -44,6 +54,7 @@ pages:
     etsy_shop: Etsy Shop
     connect_notice: Etsy is not connected yet.
     connect_link: Connect your Etsy account
+    disconnect_button: Disconnect Etsy
     recent_jobs: Recent Jobs
     no_jobs: No jobs yet.
     table:
@@ -67,6 +78,7 @@ pages:
       no_snapshot: No synced listing snapshot yet.
       synced_summary: "{count} listings synced at {at}."
       warning_template: "Your latest sync was {age}. If you changed listings outside this app, sync again before running a job."
+      stale_blocked_template: "Your latest sync is {age} old. Etsy policy requires listing data fresher than {max_age} hours, so sync again before previewing or running jobs."
       confirm_template: "Your latest listings sync was {age}. If you changed listings outside this app, sync first. Continue anyway?"
       confirm_title: Sync Freshness Check
       confirm_cancel_button: Cancel
@@ -82,6 +94,7 @@ pages:
       loading: Loading preview...
       empty: No listings match the current selection.
       no_sync: No synced listings found yet. Click Sync Listings first.
+      sync_stale: Synced listing data is stale. Refresh listings before previewing this selection.
       summary_template: "Showing {shown} of {count} affected listings."
       truncated_template: "{remaining} more not shown."
       unknown_title: Title unavailable
@@ -127,6 +140,8 @@ pages:
         placeholder: "50"
       dry_run:
         label: Dry run only (calculate and report without applying)
+    validation:
+      percent_guardrail: Percent decrease cannot exceed {max}%.
 
   job_detail:
     title_prefix: Job
@@ -153,6 +168,54 @@ pages:
     error_fallback: OAuth process failed.
     return_home: Return to home page
     auto_close_hint: This popup will close automatically.
+
+  legal_terms:
+    heading: Application Terms of Use
+    version_label: Version
+    intro: By using this application, you agree to these Application Terms, the linked Privacy Policy, and applicable Etsy platform rules.
+    service_scope_title: Service Scope
+    service_scope_body: This application connects to your Etsy account through Etsy OAuth and performs seller-authorized listing and inventory actions on your behalf.
+    etsy_compliance_title: Required Etsy Compliance
+    etsy_compliance_item_1: You must comply with Etsy's API Terms of Use and Developer Terms at all times.
+    etsy_compliance_item_2: You may only use the app with accounts and shops you are authorized to manage.
+    etsy_compliance_item_3: You must not use the app to violate marketplace policies, applicable law, or third-party rights.
+    data_access_title: Data and Access
+    data_access_item_1: You authorize this app to process Etsy data needed to provide requested features.
+    data_access_item_2: You can disconnect your Etsy account at any time from the dashboard.
+    data_access_item_3: When disconnected, OAuth tokens and synced listing cache are removed by this app.
+    warranty_title: Warranty Disclaimer
+    warranty_body: THE APPLICATION IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+    support_title: Support
+    support_prefix: For account or data requests, contact
+
+  legal_privacy:
+    heading: Privacy Policy
+    version_label: Version
+    intro: This policy describes how this application processes Etsy-related data to provide bulk listing price update workflows.
+    data_processed_title: Data Processed
+    data_processed_item_1: Etsy OAuth tokens (stored encrypted at rest).
+    data_processed_item_2: Etsy account identifiers needed for account and shop linkage.
+    data_processed_item_3: Synced listing metadata used for selection and previews.
+    data_processed_item_4: Job execution logs and audit events for reliability and traceability.
+    purpose_title: Purpose
+    purpose_item_1: Authenticate your Etsy account.
+    purpose_item_2: Sync listings and prepare job targeting.
+    purpose_item_3: Run requested price adjustments and provide reports.
+    retention_title: Retention and Removal
+    retention_item_1: You can disconnect Etsy at any time; disconnect removes OAuth tokens and synced listing cache.
+    retention_item_2: Operational logs may remain for troubleshooting, security, and audit purposes.
+    security_title: Security
+    security_item_1: OAuth secrets and tokens are treated as sensitive data.
+    security_item_2: Sensitive values are never intentionally exposed in UI responses.
+    contact_title: Contact
+    contact_prefix: For privacy or data requests, contact
+
+  legal:
+    terms_title: Terms of Use
+    privacy_title: Privacy Policy
+
+legal:
+  etsy_trademark_disclaimer: The term Etsy is a trademark of Etsy, Inc. This application uses the Etsy API but is not endorsed or certified by Etsy, Inc.
 
 statuses:
   queued: Queued

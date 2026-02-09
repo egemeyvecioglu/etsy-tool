@@ -15,6 +15,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 from pydantic import AliasChoices, Field
@@ -86,7 +87,11 @@ class Settings(BaseSettings):
 
     max_percentage_change: float = 50.0
     enable_worker: bool = True
-    allow_admin_bypass_login: bool = True
+    allow_admin_bypass_login: bool = False
+    listing_cache_max_age_hours: int = 6
+    support_email: str = "support@example.com"
+    legal_terms_version: str = "2026-02-09"
+    legal_privacy_version: str = "2026-02-09"
     default_locale: str = "en"
     supported_locales: str = "en,tr"
     i18n_path: str = "config/i18n"
@@ -160,6 +165,32 @@ def to_fernet_key(raw_value: str) -> str:
     return base64.urlsafe_b64encode(digest).decode("utf-8")
 
 
+def _validate_runtime_settings(settings: Settings) -> None:
+    """Validate safety/compliance-sensitive settings before app startup."""
+
+    if settings.listing_cache_max_age_hours <= 0:
+        raise ValueError("listing_cache_max_age_hours must be greater than 0")
+
+    support_email = settings.support_email.strip()
+    if not support_email or "@" not in support_email:
+        raise ValueError("support_email must be a valid monitored email address")
+
+    env_lower = settings.env.strip().lower()
+    is_production = env_lower in {"production", "prod"}
+    if not is_production:
+        return
+
+    redirect = urlparse(settings.etsy_redirect_uri.strip())
+    if redirect.scheme.lower() != "https":
+        raise ValueError("Production OAuth redirect URI must use HTTPS")
+
+    if settings.allow_admin_bypass_login:
+        raise ValueError("allow_admin_bypass_login must be false in production")
+
+    if support_email == "support@example.com":
+        raise ValueError("Set a real monitored support_email in production")
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Create and cache runtime settings.
@@ -179,4 +210,6 @@ def get_settings() -> Settings:
     # Normalize token encryption input to a valid Fernet key format.
     merged_data = merged.model_dump()
     merged_data["token_encryption_key"] = to_fernet_key(merged.token_encryption_key)
-    return Settings.model_validate(merged_data)
+    validated = Settings.model_validate(merged_data)
+    _validate_runtime_settings(validated)
+    return validated

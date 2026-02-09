@@ -7,16 +7,24 @@ common:
   dashboard: Panel
   create_job: İş Oluştur
   sign_out: Çıkış Yap
+  terms_of_use: Kullanım Şartları
+  privacy_policy: Gizlilik Politikası
   connected: Bağlı
   not_connected: Bağlı değil
   not_available: Yok
   language: Dil
   admin_bypass_login: Yönetici Girişi (Test Modu)
+  validation_required: Lütfen bu alanı doldurun.
+  validation_number: Lütfen geçerli bir sayı girin.
+  validation_min_template: Değer en az {min} olmalıdır.
+  validation_step: Lütfen geçerli bir değer girin.
 
 flash:
   signed_out: Çıkış yapıldı
   connect_first: Önce Etsy hesabınızı bağlayın
+  accept_terms_required: Etsy bağlantısından önce Kullanım Şartları ve Gizlilik Politikası kabul edilmelidir.
   etsy_connected: Etsy hesabı bağlandı
+  etsy_disconnected: Etsy hesabı bağlantısı kesildi. Kayıtlı Etsy bağlantı verileriniz kaldırıldı.
   invalid_oauth_state: Geçersiz OAuth callback durumu
   admin_bypass_enabled: Yönetici test girişi etkinleştirildi
   listings_synced: İlanlar başarıyla senkronize edildi
@@ -29,6 +37,8 @@ pages:
     description: Etsy hesabınızı bağlayın, fiyat ayarlama kuralı oluşturun ve tüm varyasyon tekliflerinde dry-run önizleme ve indirilebilir rapor ile toplu güncelleme çalıştırın.
     open_dashboard: Paneli Aç
     connect_etsy: Etsy Hesabını Bağla
+    legal_notice_prefix: Bağlanarak
+    legal_notice_middle: ve
     status_label: Durum
     oauth_mode_label: OAuth Modu
     oauth_mode_value: Authorization Code + PKCE
@@ -44,6 +54,7 @@ pages:
     etsy_shop: Etsy Mağazası
     connect_notice: Etsy henüz bağlı değil.
     connect_link: Etsy hesabınızı bağlayın
+    disconnect_button: Etsy Bağlantısını Kes
     recent_jobs: Son İşler
     no_jobs: Henüz iş yok.
     table:
@@ -67,6 +78,7 @@ pages:
       no_snapshot: Henüz senkronize ilan anlık görüntüsü yok.
       synced_summary: "{count} ilan {at} tarihinde senkronize edildi."
       warning_template: "Son senkronizasyonunuz {age}. Uygulama dışında ilan değişikliği yaptıysanız işi çalıştırmadan önce yeniden senkronize edin."
+      stale_blocked_template: "Son senkronizasyonunuz {age} önce. Etsy politikası listeleme verisinin en fazla {max_age} saatlik olmasını ister; önizleme veya iş çalıştırmadan önce yeniden senkronize edin."
       confirm_template: "Son ilan senkronizasyonunuz {age}. Uygulama dışında ilan değişikliği yaptıysanız önce senkronize edin. Yine de devam edilsin mi?"
       confirm_title: Senkronizasyon Güncellik Kontrolü
       confirm_cancel_button: İptal
@@ -82,6 +94,7 @@ pages:
       loading: Önizleme yükleniyor...
       empty: Mevcut seçime uyan ilan bulunamadı.
       no_sync: Henüz senkronize ilan yok. Önce İlanları Senkronize Et düğmesine basın.
+      sync_stale: Senkronize ilan verisi artık güncel değil. Bu seçim için önce yeniden senkronize edin.
       summary_template: "Etkilenecek {count} ilanın {shown} adedi gösteriliyor."
       truncated_template: "{remaining} ilan daha gösterilmiyor."
       unknown_title: Başlık bilgisi yok
@@ -127,6 +140,8 @@ pages:
         placeholder: "50"
       dry_run:
         label: Sadece dry run (uygulamadan hesapla ve raporla)
+    validation:
+      percent_guardrail: Yüzde azalış {max}% sınırını aşamaz.
 
   job_detail:
     title_prefix: İş
@@ -153,6 +168,54 @@ pages:
     error_fallback: OAuth süreci başarısız oldu.
     return_home: Ana sayfaya dön
     auto_close_hint: Bu açılır pencere otomatik olarak kapanacaktır.
+
+  legal_terms:
+    heading: Uygulama Kullanım Şartları
+    version_label: Sürüm
+    intro: Bu uygulamayı kullanarak bu Kullanım Şartlarını, bağlantılı Gizlilik Politikasını ve geçerli Etsy platform kurallarını kabul etmiş olursunuz.
+    service_scope_title: Hizmet Kapsamı
+    service_scope_body: Bu uygulama Etsy OAuth üzerinden Etsy hesabınıza bağlanır ve sizin adınıza satıcı tarafından yetkilendirilmiş ilan ve envanter işlemlerini gerçekleştirir.
+    etsy_compliance_title: Gerekli Etsy Uyumluluğu
+    etsy_compliance_item_1: Etsy API Kullanım Şartlarına ve Geliştirici Şartlarına her zaman uymalısınız.
+    etsy_compliance_item_2: Uygulamayı yalnızca yönetme yetkiniz olan hesaplar ve mağazalar için kullanabilirsiniz.
+    etsy_compliance_item_3: Uygulamayı pazar yeri politikalarını, yürürlükteki yasaları veya üçüncü taraf haklarını ihlal edecek şekilde kullanamazsınız.
+    data_access_title: Veri ve Erişim
+    data_access_item_1: Talep edilen özelliklerin sunulması için gerekli Etsy verilerinin bu uygulama tarafından işlenmesine izin verirsiniz.
+    data_access_item_2: Etsy hesabı bağlantısını panelden istediğiniz zaman kesebilirsiniz.
+    data_access_item_3: Bağlantı kesildiğinde OAuth tokenları ve senkronize ilan önbelleği bu uygulama tarafından silinir.
+    warranty_title: Garanti Reddi
+    warranty_body: UYGULAMA "OLDUĞU GİBİ" VE "MEVCUT OLDUĞU ŞEKİLDE" SUNULUR; TİCARİ ELVERİŞLİLİK, BELİRLİ BİR AMACA UYGUNLUK VE İHLAL ETMEME DAHİL OLMAK ÜZERE AÇIK YA DA ZIMNİ HİÇBİR GARANTİ VERİLMEZ.
+    support_title: Destek
+    support_prefix: Hesap veya veri talepleri için iletişim
+
+  legal_privacy:
+    heading: Gizlilik Politikası
+    version_label: Sürüm
+    intro: Bu politika, bu uygulamanın toplu ilan fiyat güncelleme akışlarını sunmak için Etsy ile ilgili verileri nasıl işlediğini açıklar.
+    data_processed_title: İşlenen Veriler
+    data_processed_item_1: Etsy OAuth tokenları (dinlenimde şifreli olarak saklanır).
+    data_processed_item_2: Hesap ve mağaza eşleştirmesi için gerekli Etsy hesap kimlikleri.
+    data_processed_item_3: Seçim ve önizleme için kullanılan senkronize ilan meta verileri.
+    data_processed_item_4: Güvenilirlik ve izlenebilirlik için iş yürütme kayıtları ve denetim olayları.
+    purpose_title: Amaç
+    purpose_item_1: Etsy hesabınızı kimlik doğrulamak.
+    purpose_item_2: İlanları senkronize etmek ve iş hedeflemesini hazırlamak.
+    purpose_item_3: Talep edilen fiyat ayarlamalarını çalıştırmak ve rapor sağlamak.
+    retention_title: Saklama ve Silme
+    retention_item_1: Etsy bağlantısını istediğiniz zaman kesebilirsiniz; bağlantı kesildiğinde OAuth tokenları ve senkronize ilan önbelleği silinir.
+    retention_item_2: Operasyonel kayıtlar sorun giderme, güvenlik ve denetim amaçlarıyla tutulabilir.
+    security_title: Güvenlik
+    security_item_1: OAuth sırları ve tokenları hassas veri olarak ele alınır.
+    security_item_2: Hassas değerler istemli olarak UI yanıtlarında gösterilmez.
+    contact_title: İletişim
+    contact_prefix: Gizlilik veya veri talepleri için iletişim
+
+  legal:
+    terms_title: Kullanım Şartları
+    privacy_title: Gizlilik Politikası
+
+legal:
+  etsy_trademark_disclaimer: Etsy terimi Etsy, Inc. şirketinin ticari markasıdır. Bu uygulama Etsy API kullanır ancak Etsy, Inc. tarafından onaylanmaz veya sertifikalandırılmaz.
 
 statuses:
   queued: Sırada

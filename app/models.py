@@ -71,6 +71,11 @@ class User(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    legal_acceptance: Mapped[LegalAcceptance | None] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     listing_sync_state: Mapped[ListingSyncState | None] = relationship(
         back_populates="user",
         uselist=False,
@@ -97,6 +102,21 @@ class OAuthToken(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="oauth_token")
+
+
+class LegalAcceptance(Base):
+    """Records per-user acceptance of app terms/privacy policy versions."""
+
+    __tablename__ = "legal_acceptances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    terms_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    privacy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="legal_acceptance")
 
 
 class ListingSyncState(Base):

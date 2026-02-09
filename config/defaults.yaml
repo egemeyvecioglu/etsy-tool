@@ -20,7 +20,11 @@ job_poll_interval_seconds: 1.5
 token_expiry_buffer_seconds: 120
 max_percentage_change: 50.0
 enable_worker: true
-allow_admin_bypass_login: true
+allow_admin_bypass_login: false
+listing_cache_max_age_hours: 6
+support_email: ege.meyvecioglu07@gmail.com
+legal_terms_version: "2026-02-09"
+legal_privacy_version: "2026-02-09"
 default_locale: en
 supported_locales: en,tr
 i18n_path: config/i18n

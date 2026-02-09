@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote, unquote
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -22,7 +22,7 @@ from app.admin_bypass import apply_admin_bypass_identity, filtered_mock_listing_
 from app.config import get_settings
 from app.db import SessionLocal, create_database_schema, get_db
 from app.etsy_client import EtsyAPIError, EtsyClient
-from app.i18n import I18nService, get_i18n_service
+from app.i18n import I18nService, get_runtime_i18n_service
 from app.models import Job, JobItem, JobItemStatus, JobStatus, User
 from app.schemas import JobCreateResponse, JobSummaryResponse, PriceAdjustJobRequest, SelectionMode
 from app.services import (
@@ -31,14 +31,18 @@ from app.services import (
     clear_session_user,
     convert_form_to_job_request,
     create_price_adjust_job,
+    disconnect_etsy_account,
     ensure_etsy_connection,
     get_listing_sync_state,
     get_or_create_session_user,
     get_or_refresh_access_token,
     get_synced_listing_count,
     get_synced_listing_rows,
+    has_current_legal_acceptance,
+    is_listing_sync_stale,
     parse_listing_ids_csv,
     preview_listings_for_selection,
+    record_legal_acceptance,
     resolve_listing_ids_for_selection,
     save_user_tokens,
     serialize_job_items,
@@ -49,7 +53,16 @@ from app.worker import JobWorker
 
 
 settings = get_settings()
-i18n_service: I18nService = get_i18n_service()
+
+
+class _I18nRuntimeProxy:
+    """Proxy that resolves latest i18n catalog state at access time."""
+
+    def __getattr__(self, name: str):
+        return getattr(get_runtime_i18n_service(), name)
+
+
+i18n_service: I18nService = cast(I18nService, _I18nRuntimeProxy())
 templates = Jinja2Templates(directory="app/templates")
 worker = JobWorker(SessionLocal)
 
@@ -133,6 +146,11 @@ def _template_base_context(request: Request, *, locale: str | None = None) -> di
             }
         )
 
+    # Support one-time server-side flash message keys (consumed on first render).
+    query_message_key = request.query_params.get("message_key")
+    session_message_key = request.session.pop("flash_message_key", None)
+    resolved_message_key = query_message_key if query_message_key else session_message_key
+
     return {
         "request": request,
         "t": t,
@@ -144,8 +162,11 @@ def _template_base_context(request: Request, *, locale: str | None = None) -> di
         "job_type_label": lambda value: _enum_label(resolved_locale, "job_types", str(value)),
         "message": request.query_params.get("message"),
         "error": request.query_params.get("error"),
-        "message_key": request.query_params.get("message_key"),
+        "message_key": resolved_message_key,
         "error_key": request.query_params.get("error_key"),
+        "support_email": settings.support_email,
+        "legal_terms_version": settings.legal_terms_version,
+        "legal_privacy_version": settings.legal_privacy_version,
     }
 
 
@@ -284,6 +305,32 @@ def set_language(locale_code: str, request: Request):
     return RedirectResponse(next_path, status_code=303)
 
 
+@app.get("/legal/terms")
+def legal_terms(request: Request):
+    """Render application terms page required for Etsy API usage."""
+
+    return _render_template(
+        request,
+        "legal_terms.html",
+        {
+            "page_title_key": "pages.legal.terms_title",
+        },
+    )
+
+
+@app.get("/legal/privacy")
+def legal_privacy(request: Request):
+    """Render application privacy policy page required for Etsy API usage."""
+
+    return _render_template(
+        request,
+        "legal_privacy.html",
+        {
+            "page_title_key": "pages.legal.privacy_title",
+        },
+    )
+
+
 @app.get("/")
 def index(request: Request, user: User = Depends(current_user)):
     """Render landing page with Etsy connection action."""
@@ -334,6 +381,7 @@ def create_job_page(request: Request, db: Session = Depends(get_db), user: User 
     connected = bool(user.etsy_user_id and user.etsy_shop_id)
     form_schema = get_job_form_schema().model_dump(mode="json")
     sync_state = get_listing_sync_state(db, user) if connected else None
+    sync_is_stale = bool(sync_state and is_listing_sync_stale(sync_state.last_synced_at))
     preview_rows = (
         preview_listings_for_selection(
             db,
@@ -341,14 +389,14 @@ def create_job_page(request: Request, db: Session = Depends(get_db), user: User 
             selection_mode=SelectionMode.ALL_ACTIVE.value,
             limit=8,
         )
-        if sync_state is not None
+        if sync_state is not None and not sync_is_stale
         else []
     )
     sync_age = _age_label_for_sync(sync_state.last_synced_at if sync_state else None, translator)
     sync_iso, sync_display = _format_sync_timestamp(sync_state.last_synced_at if sync_state else None)
     sync_confirm_message = (
         translator("pages.create_job.sync.confirm_template", age=sync_age)
-        if connected
+        if connected and sync_state is not None and not sync_is_stale
         else ""
     )
 
@@ -360,11 +408,13 @@ def create_job_page(request: Request, db: Session = Depends(get_db), user: User 
             "connected": connected,
             "job_form_schema": form_schema,
             "listing_sync": {
-                "has_synced": sync_state is not None,
+                "has_synced": sync_state is not None and not sync_is_stale,
+                "is_stale": sync_is_stale,
                 "last_synced_at_iso": sync_iso,
                 "last_synced_display": sync_display,
                 "last_synced_age": sync_age,
                 "listing_count": int(sync_state.listing_count) if sync_state else 0,
+                "max_age_hours": int(settings.listing_cache_max_age_hours),
             },
             "synced_preview_rows": preview_rows,
             "sync_confirm_message": sync_confirm_message,
@@ -455,9 +505,28 @@ def job_detail(
 def start_etsy_auth(
     request: Request,
     popup: bool = False,
+    accept_terms: bool = False,
+    db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
     """Start Etsy OAuth Authorization Code flow with PKCE."""
+
+    has_acceptance = has_current_legal_acceptance(db, user)
+    if accept_terms and not has_acceptance:
+        acceptance = record_legal_acceptance(db, user)
+        add_audit_log(
+            db,
+            user_id=user.id,
+            action="LEGAL_ACCEPTED",
+            payload={
+                "terms_version": acceptance.terms_version,
+                "privacy_version": acceptance.privacy_version,
+                "accepted_at": acceptance.accepted_at.isoformat(),
+            },
+        )
+    elif not has_acceptance:
+        next_path = "/?error_key=flash.accept_terms_required"
+        return RedirectResponse(next_path, status_code=303)
 
     if not settings.etsy_client_id:
         raise HTTPException(
@@ -573,7 +642,26 @@ def logout(request: Request):
     """Clear local session cookie context."""
 
     clear_session_user(request)
-    return RedirectResponse("/?message_key=flash.signed_out", status_code=303)
+    request.session["flash_message_key"] = "flash.signed_out"
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/auth/etsy/disconnect")
+def disconnect_etsy(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    """Disconnect Etsy account and delete OAuth/cache data for this user."""
+
+    if user.etsy_user_id or user.etsy_shop_id:
+        disconnect_etsy_account(db, user)
+        add_audit_log(
+            db,
+            user_id=user.id,
+            action="ETSY_DISCONNECTED",
+        )
+
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/auth/admin-login")
@@ -648,16 +736,28 @@ def api_listings(
 
     ensure_etsy_connection(user)
     sync_state = get_listing_sync_state(db, user)
-    if sync_state is None:
-        return JSONResponse({"results": [], "has_synced": False, "last_synced_at": None, "total_synced": 0})
+    sync_stale = bool(sync_state and is_listing_sync_stale(sync_state.last_synced_at))
+    if sync_state is None or sync_stale:
+        return JSONResponse(
+            {
+                "results": [],
+                "has_synced": False,
+                "sync_stale": sync_stale,
+                "last_synced_at": sync_state.last_synced_at.isoformat() if sync_state else None,
+                "total_synced": int(sync_state.listing_count) if sync_state else 0,
+                "max_age_hours": int(settings.listing_cache_max_age_hours),
+            }
+        )
 
     rows = get_synced_listing_rows(db, user, title_filter=filter)
     return JSONResponse(
         {
             "results": rows,
             "has_synced": True,
+            "sync_stale": False,
             "last_synced_at": sync_state.last_synced_at.isoformat(),
             "total_synced": sync_state.listing_count,
+            "max_age_hours": int(settings.listing_cache_max_age_hours),
         }
     )
 
@@ -672,13 +772,22 @@ def api_listing_count(
 
     ensure_etsy_connection(user)
     sync_state = get_listing_sync_state(db, user)
-    if sync_state is None:
-        return {"count": 0, "has_synced": False}
+    sync_stale = bool(sync_state and is_listing_sync_stale(sync_state.last_synced_at))
+    if sync_state is None or sync_stale:
+        return {
+            "count": 0,
+            "has_synced": False,
+            "sync_stale": sync_stale,
+            "last_synced_at": sync_state.last_synced_at.isoformat() if sync_state else None,
+            "max_age_hours": int(settings.listing_cache_max_age_hours),
+        }
 
     return {
         "count": get_synced_listing_count(db, user, title_filter=filter),
         "has_synced": True,
+        "sync_stale": False,
         "last_synced_at": sync_state.last_synced_at.isoformat(),
+        "max_age_hours": int(settings.listing_cache_max_age_hours),
     }
 
 
@@ -700,32 +809,52 @@ def api_listing_preview(
         normalized_mode = SelectionMode.ALL_ACTIVE.value
 
     sync_state = get_listing_sync_state(db, user)
+    sync_stale = bool(sync_state and is_listing_sync_stale(sync_state.last_synced_at))
+    has_usable_sync = sync_state is not None and not sync_stale
     parsed_listing_ids = parse_listing_ids_csv(listing_ids_csv or "")
 
-    rows = preview_listings_for_selection(
-        db,
-        user,
-        selection_mode=normalized_mode,
-        title_filter=filter,
-        listing_ids=parsed_listing_ids,
-        limit=limit,
-    )
-
     if normalized_mode == SelectionMode.LISTING_IDS.value:
+        rows = preview_listings_for_selection(
+            db,
+            user,
+            selection_mode=normalized_mode,
+            title_filter=filter,
+            listing_ids=parsed_listing_ids,
+            limit=limit,
+        )
         total_count = len({listing_id for listing_id in parsed_listing_ids if listing_id})
-    elif sync_state is None:
+    elif not has_usable_sync:
+        rows = []
         total_count = 0
     elif normalized_mode == SelectionMode.FILTER.value:
+        rows = preview_listings_for_selection(
+            db,
+            user,
+            selection_mode=normalized_mode,
+            title_filter=filter,
+            listing_ids=parsed_listing_ids,
+            limit=limit,
+        )
         total_count = get_synced_listing_count(db, user, title_filter=filter)
     else:
+        rows = preview_listings_for_selection(
+            db,
+            user,
+            selection_mode=normalized_mode,
+            title_filter=filter,
+            listing_ids=parsed_listing_ids,
+            limit=limit,
+        )
         total_count = int(sync_state.listing_count)
 
     return {
         "results": rows,
         "count": total_count,
-        "has_synced": sync_state is not None,
+        "has_synced": has_usable_sync,
+        "sync_stale": sync_stale,
         "last_synced_at": sync_state.last_synced_at.isoformat() if sync_state else None,
-        "total_synced": int(sync_state.listing_count) if sync_state else 0,
+        "total_synced": int(sync_state.listing_count) if has_usable_sync else 0,
+        "max_age_hours": int(settings.listing_cache_max_age_hours),
     }
 
 

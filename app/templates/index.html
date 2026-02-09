@@ -10,7 +10,7 @@
       {% if connected %}
       <a class="btn btn-large" href="/dashboard">{{ t("pages.index.open_dashboard") }}</a>
       {% else %}
-      <a class="btn btn-large" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.index.connect_etsy") }}</a>
+      <a class="btn btn-large" href="/auth/etsy/start?accept_terms=1" data-oauth-popup="true">{{ t("pages.index.connect_etsy") }}</a>
       {% if show_admin_bypass %}
       <form method="post" action="/auth/admin-login" class="inline-form">
         <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>
@@ -18,6 +18,14 @@
       {% endif %}
       {% endif %}
     </div>
+    {% if not connected %}
+    <p class="muted legal-acceptance-note">
+      {{ t("pages.index.legal_notice_prefix") }}
+      <a class="text-link" href="/legal/terms">{{ t("common.terms_of_use") }}</a>
+      {{ t("pages.index.legal_notice_middle") }}
+      <a class="text-link" href="/legal/privacy">{{ t("common.privacy_policy") }}</a>.
+    </p>
+    {% endif %}
   </div>
 
   <aside class="hero-panel">

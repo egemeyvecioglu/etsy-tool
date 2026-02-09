@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Generator
 
 import pytest
@@ -15,9 +16,11 @@ from app.schemas import PriceAdjustJobRequest
 from app.services import (
     get_listing_sync_state,
     get_synced_listing_rows,
+    is_listing_sync_stale,
     preview_listings_for_selection,
     resolve_listing_ids_for_selection,
     sync_user_listings_snapshot,
+    utcnow,
 )
 
 
@@ -154,3 +157,38 @@ def test_listing_id_preview_marks_rows_missing_from_sync_snapshot(db_session: Se
     assert rows[0]["in_sync_snapshot"] is True
     assert rows[1]["listing_id"] == "999"
     assert rows[1]["in_sync_snapshot"] is False
+
+
+def test_stale_listing_sync_is_detected() -> None:
+    """Listing sync older than policy window should be treated as stale."""
+
+    stale_timestamp = utcnow() - timedelta(hours=7)
+    assert is_listing_sync_stale(stale_timestamp) is True
+
+
+def test_resolve_listing_ids_rejects_stale_sync_for_all_active(db_session: Session) -> None:
+    """All-active selection should fail when synced snapshot is stale."""
+
+    user = _create_user(db_session)
+    state = sync_user_listings_snapshot(
+        db_session,
+        user,
+        [{"listing_id": "100", "title": "Cotton Tee"}],
+        source="etsy",
+    )
+    state.last_synced_at = utcnow() - timedelta(hours=7)
+    db_session.add(state)
+    db_session.commit()
+
+    payload = PriceAdjustJobRequest.model_validate(
+        {
+            "selection": {"mode": "all_active"},
+            "adjustment": {"type": "absolute", "direction": "increase", "value": "2"},
+            "options": {"dry_run": True},
+        }
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        resolve_listing_ids_for_selection(db=db_session, user=user, request_payload=payload)
+
+    assert "stale" in str(exc.value.detail).lower()

@@ -9,6 +9,7 @@ This MVP implements the full plan in `implementation-plan.md`:
 - FastAPI web app with server-rendered pages (Jinja2)
 - Etsy OAuth start/callback flow with PKCE
 - Encrypted OAuth token storage in database
+- Legal acceptance gate before Etsy OAuth start (app terms + privacy policy)
 - Listings selection modes:
   - all active
   - title keyword filter
@@ -16,8 +17,8 @@ This MVP implements the full plan in `implementation-plan.md`:
 - Listings sync cache workflow:
   - manual `Sync Listings` action
   - synced snapshot persisted across sessions
+  - stale snapshots blocked by policy (`ETSY_TOOL_LISTING_CACHE_MAX_AGE_HOURS`, default 6h)
   - create-job preview of affected listings from synced data
-  - stale-sync warning/confirmation before running price update
 - Bulk variation price update job system with:
   - async background worker
   - per-listing job item tracking
@@ -32,6 +33,7 @@ This MVP implements the full plan in `implementation-plan.md`:
   - optional max change guardrail
 - Basic audit trail entries
 - Unit tests for key logic
+- Etsy-required trademark disclaimer + support contact in shared footer
 
 ## Stack
 
@@ -90,7 +92,11 @@ Important variables:
 - `ETSY_TOOL_OAUTH_CLIENT_SECRET`
 - `ETSY_TOOL_OAUTH_REDIRECT_URI`
 - `ETSY_TOOL_ETSY_SCOPES`
-- `ETSY_TOOL_ALLOW_ADMIN_BYPASS_LOGIN` (default: `true`, testing only)
+- `ETSY_TOOL_LISTING_CACHE_MAX_AGE_HOURS` (default: `6`)
+- `ETSY_TOOL_SUPPORT_EMAIL` (required monitored email in production)
+- `ETSY_TOOL_LEGAL_TERMS_VERSION` (default: `2026-02-09`)
+- `ETSY_TOOL_LEGAL_PRIVACY_VERSION` (default: `2026-02-09`)
+- `ETSY_TOOL_ALLOW_ADMIN_BYPASS_LOGIN` (default: `false`, testing only)
 - `ETSY_TOOL_DEFAULT_LOCALE` (default: `en`)
 - `ETSY_TOOL_SUPPORTED_LOCALES` (default: `en,tr`)
 - `ETSY_TOOL_I18N_PATH` (default: `config/i18n`)
@@ -124,7 +130,13 @@ Auth:
 
 - `GET /auth/etsy/start`
 - `GET /oauth/etsy/callback`
+- `POST /auth/etsy/disconnect`
 - `POST /auth/logout`
+
+Legal pages:
+
+- `GET /legal/terms`
+- `GET /legal/privacy`
 
 Listings:
 
@@ -145,7 +157,7 @@ Jobs:
 
 - The app uses a simple local session identity for MVP; users are linked to Etsy after OAuth callback.
 - `all_active` and `filter` selection modes resolve from synced listing cache (not live Etsy listing fetches).
-- Users should run `Sync Listings` after changing listings outside the app.
+- Users must run `Sync Listings` after changing listings outside the app and before synced data exceeds policy max age.
 - Etsy connection links open OAuth in a popup by default; if blocked, flow falls back to full-page mode.
 - Testing shortcut: `Admin Login (Test Mode)` bypasses Etsy OAuth and uses mock listing/inventory data.
 - Production deployment should use Postgres + real worker process separation + reverse proxy/TLS.

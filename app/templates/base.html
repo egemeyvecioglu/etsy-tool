@@ -61,22 +61,50 @@
       </div>
     </header>
 
-    <main class="container page-stack">
-      {% if message_key %}
-      <div class="alert success">{{ t(message_key) }}</div>
-      {% elif message %}
-      <div class="alert success">{{ message }}</div>
-      {% endif %}
+    {% set signed_out_toast = message_key == "flash.signed_out" %}
+    {% if signed_out_toast %}
+    <div class="toast-layer">
+      <div class="toast success" role="status" aria-live="polite" data-toast-auto-dismiss-ms="3200">
+        <span class="toast-icon" aria-hidden="true">✅</span>
+        <span>{{ t("flash.signed_out") }}</span>
+      </div>
+    </div>
+    {% endif %}
 
-      {% if error_key %}
-      <div class="alert error">{{ t(error_key) }}</div>
-      {% elif error %}
-      <div class="alert error">{{ error }}</div>
+    <main class="container page-stack">
+      {% if (message_key and not signed_out_toast) or message or error_key or error %}
+      <div class="flash-stack">
+        {% if message_key and not signed_out_toast %}
+        <div class="alert success" role="status" aria-live="polite">{{ t(message_key) }}</div>
+        {% elif message %}
+        <div class="alert success" role="status" aria-live="polite">{{ message }}</div>
+        {% endif %}
+
+        {% if error_key %}
+        <div class="alert error" role="alert">{{ t(error_key) }}</div>
+        {% elif error %}
+        <div class="alert error" role="alert">{{ error }}</div>
+        {% endif %}
+      </div>
       {% endif %}
 
       {% block content %}{% endblock %}
     </main>
 
+    <footer class="legal-footer">
+      <div class="legal-footer-inner">
+        <p class="legal-disclaimer">{{ t("legal.etsy_trademark_disclaimer") }}</p>
+        <p class="legal-links">
+          <a href="/legal/terms">{{ t("common.terms_of_use") }}</a>
+          <span aria-hidden="true">·</span>
+          <a href="/legal/privacy">{{ t("common.privacy_policy") }}</a>
+          <span aria-hidden="true">·</span>
+          <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+        </p>
+      </div>
+    </footer>
+
     <script src="/static/oauth_popup.js"></script>
+    <script src="/static/flash_toast.js"></script>
   </body>
 </html>

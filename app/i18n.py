@@ -21,6 +21,9 @@ from fastapi import Request
 from app.config import get_settings
 
 
+_catalog_signature_cache: tuple[tuple[str, float], ...] | None = None
+
+
 def _deep_get(mapping: dict[str, Any], dotted_key: str) -> str | None:
     """Return nested translation value by dotted key path.
 
@@ -60,6 +63,19 @@ def _split_supported_locales(raw: str) -> list[str]:
 
     values = [token.strip().lower() for token in re.split(r"[\s,]+", raw) if token.strip()]
     return values or ["en"]
+
+
+def _catalog_signature(path: Path, locales: tuple[str, ...]) -> tuple[tuple[str, float], ...]:
+    """Build lightweight signature for locale files based on mtimes."""
+
+    signature: list[tuple[str, float]] = []
+    for locale in locales:
+        file_path = path / f"{locale}.yaml"
+        if file_path.exists():
+            signature.append((locale, file_path.stat().st_mtime))
+        else:
+            signature.append((locale, -1.0))
+    return tuple(signature)
 
 
 def _accept_language_candidates(header_value: str | None) -> list[str]:
@@ -184,3 +200,21 @@ def get_i18n_service() -> I18nService:
         supported_locales=supported,
         default_locale=default_locale,
     )
+
+
+def get_runtime_i18n_service() -> I18nService:
+    """Return i18n service, reloading locale catalogs on changes in debug mode."""
+
+    global _catalog_signature_cache
+
+    settings = get_settings()
+    if not settings.debug:
+        return get_i18n_service()
+
+    supported = tuple(_split_supported_locales(settings.supported_locales))
+    signature = _catalog_signature(Path(settings.i18n_path), supported)
+    if signature != _catalog_signature_cache:
+        get_i18n_service.cache_clear()
+        _catalog_signature_cache = signature
+
+    return get_i18n_service()

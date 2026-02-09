@@ -6,7 +6,14 @@
       <h1>{{ t("pages.dashboard.title") }}</h1>
       <p class="muted">{{ t("pages.dashboard.subtitle") }}</p>
     </div>
-    <a class="btn" href="/jobs/new">{{ t("pages.dashboard.create_button") }}</a>
+    <div class="actions">
+      <a class="btn" href="/jobs/new">{{ t("pages.dashboard.create_button") }}</a>
+      {% if connected %}
+      <form method="post" action="/auth/etsy/disconnect" class="inline-form">
+        <button class="ghost" type="submit">{{ t("pages.dashboard.disconnect_button") }}</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   <div class="meta-grid">
@@ -30,7 +37,7 @@
       <strong>{{ t("pages.dashboard.connect_notice") }}</strong>
     </div>
     <div class="actions">
-      <a class="btn" href="/auth/etsy/start" data-oauth-popup="true">{{ t("pages.dashboard.connect_link") }}</a>
+      <a class="btn" href="/auth/etsy/start?accept_terms=1" data-oauth-popup="true">{{ t("pages.dashboard.connect_link") }}</a>
       {% if show_admin_bypass %}
       <form method="post" action="/auth/admin-login" class="inline-form">
         <button class="ghost" type="submit">{{ t("common.admin_bypass_login") }}</button>

@@ -20,19 +20,30 @@ from app.models import (
     JobItemStatus,
     JobStatus,
     JobType,
+    LegalAcceptance,
     ListingSyncState,
     OAuthToken,
     SyncedListing,
     User,
     UserStatus,
 )
-from app.schemas import PriceAdjustJobRequest, SelectionMode
+from app.schemas import AdjustmentDirection, PriceAdjustJobRequest, SelectionMode
 
 
 def utcnow() -> datetime:
     """Return current UTC datetime with timezone."""
 
     return datetime.now(tz=timezone.utc)
+
+
+def _normalize_datetime_utc(value: datetime | None) -> datetime | None:
+    """Normalize potentially-naive datetimes to timezone-aware UTC."""
+
+    if value is None:
+        return None
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def get_or_create_session_user(request: Request, db: Session) -> User:
@@ -60,6 +71,45 @@ def clear_session_user(request: Request) -> None:
     request.session.pop("user_id", None)
     request.session.pop("oauth_state", None)
     request.session.pop("oauth_code_verifier", None)
+
+
+def has_current_legal_acceptance(db: Session, user: User) -> bool:
+    """Return whether user accepted currently configured terms/privacy versions."""
+
+    acceptance = db.scalar(select(LegalAcceptance).where(LegalAcceptance.user_id == user.id))
+    if acceptance is None:
+        return False
+
+    settings = get_settings()
+    return (
+        acceptance.terms_version == settings.legal_terms_version
+        and acceptance.privacy_version == settings.legal_privacy_version
+    )
+
+
+def record_legal_acceptance(db: Session, user: User) -> LegalAcceptance:
+    """Upsert legal acceptance record with current terms/privacy versions."""
+
+    settings = get_settings()
+    acceptance = db.scalar(select(LegalAcceptance).where(LegalAcceptance.user_id == user.id))
+    accepted_at = utcnow()
+
+    if acceptance is None:
+        acceptance = LegalAcceptance(
+            user_id=user.id,
+            terms_version=settings.legal_terms_version,
+            privacy_version=settings.legal_privacy_version,
+            accepted_at=accepted_at,
+        )
+        db.add(acceptance)
+    else:
+        acceptance.terms_version = settings.legal_terms_version
+        acceptance.privacy_version = settings.legal_privacy_version
+        acceptance.accepted_at = accepted_at
+
+    db.commit()
+    db.refresh(acceptance)
+    return acceptance
 
 
 def _token_from_payload(payload: dict[str, Any], fallback_scopes: str) -> tuple[str, str, datetime, str]:
@@ -171,6 +221,38 @@ def get_listing_sync_state(db: Session, user: User) -> ListingSyncState | None:
     """Return latest listings sync metadata for the current user."""
 
     return db.scalar(select(ListingSyncState).where(ListingSyncState.user_id == user.id))
+
+
+def is_listing_sync_stale(last_synced_at: datetime | None) -> bool:
+    """Return `True` when synced listing cache is older than policy max age."""
+
+    normalized = _normalize_datetime_utc(last_synced_at)
+    if normalized is None:
+        return True
+
+    settings = get_settings()
+    max_age = timedelta(hours=settings.listing_cache_max_age_hours)
+    return (utcnow() - normalized) > max_age
+
+
+def ensure_fresh_listing_sync_state(db: Session, user: User) -> ListingSyncState:
+    """Require a sync snapshot that satisfies configured freshness policy."""
+
+    state = get_listing_sync_state(db, user)
+    if state is None:
+        raise HTTPException(status_code=400, detail="No synced listings found. Click Sync Listings first.")
+
+    if is_listing_sync_stale(state.last_synced_at):
+        max_age_hours = get_settings().listing_cache_max_age_hours
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Synced listings are stale "
+                f"(older than {max_age_hours} hours). Click Sync Listings first."
+            ),
+        )
+
+    return state
 
 
 def sync_user_listings_snapshot(
@@ -288,17 +370,22 @@ def preview_listings_for_selection(
         if not ordered_ids:
             return []
 
-        synced = db.scalars(
-            select(SyncedListing).where(
-                SyncedListing.user_id == user.id,
-                SyncedListing.listing_id.in_(ordered_ids),
-            )
-        ).all()
-        title_by_id = {row.listing_id: row.title for row in synced}
+        state = get_listing_sync_state(db, user)
+        can_use_snapshot_data = state is not None and not is_listing_sync_stale(state.last_synced_at)
+
+        title_by_id: dict[str, str] = {}
+        if can_use_snapshot_data:
+            synced = db.scalars(
+                select(SyncedListing).where(
+                    SyncedListing.user_id == user.id,
+                    SyncedListing.listing_id.in_(ordered_ids),
+                )
+            ).all()
+            title_by_id = {row.listing_id: row.title for row in synced}
 
         preview: list[dict[str, Any]] = []
         for listing_id in ordered_ids[:safe_limit]:
-            in_sync = listing_id in title_by_id
+            in_sync = can_use_snapshot_data and listing_id in title_by_id
             preview.append(
                 {
                     "listing_id": listing_id,
@@ -308,6 +395,7 @@ def preview_listings_for_selection(
             )
         return preview
 
+    ensure_fresh_listing_sync_state(db, user)
     rows = get_synced_listing_rows(
         db,
         user,
@@ -345,8 +433,7 @@ def resolve_listing_ids_for_selection(
             unique.append(listing_id)
         return unique
 
-    if get_listing_sync_state(db, user) is None:
-        raise HTTPException(status_code=400, detail="No synced listings found. Click Sync Listings first.")
+    ensure_fresh_listing_sync_state(db, user)
 
     rows = get_synced_listing_rows(
         db,
@@ -368,17 +455,14 @@ def create_price_adjust_job(
     if not listing_ids:
         raise HTTPException(status_code=400, detail="No listings matched the requested selection")
 
-    settings = get_settings()
     if (
         request_payload.adjustment.type.value == "percent"
-        and abs(request_payload.adjustment.value) > Decimal(str(settings.max_percentage_change))
+        and request_payload.adjustment.direction == AdjustmentDirection.DECREASE
+        and request_payload.adjustment.value > Decimal("100")
     ):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Percent adjustment exceeds configured guardrail "
-                f"(+/-{settings.max_percentage_change}%)"
-            ),
+            detail="Percent decrease cannot exceed 100%",
         )
 
     payload_dict = request_payload.model_dump(mode="json")
@@ -545,3 +629,16 @@ def ensure_etsy_connection(user: User) -> None:
 
     if not user.etsy_user_id or not user.etsy_shop_id:
         raise HTTPException(status_code=400, detail="Connect your Etsy account first")
+
+
+def disconnect_etsy_account(db: Session, user: User) -> None:
+    """Remove Etsy linkage and related token/cache data for a user."""
+
+    db.execute(delete(OAuthToken).where(OAuthToken.user_id == user.id))
+    db.execute(delete(SyncedListing).where(SyncedListing.user_id == user.id))
+    db.execute(delete(ListingSyncState).where(ListingSyncState.user_id == user.id))
+
+    user.etsy_user_id = None
+    user.etsy_shop_id = None
+    db.add(user)
+    db.commit()

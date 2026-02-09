@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="surface legal-surface">
+  <h1>{{ t("pages.legal_terms.heading") }}</h1>
+  <p class="muted">{{ t("pages.legal_terms.version_label") }}: {{ legal_terms_version }}</p>
+  <p>
+    {{ t("pages.legal_terms.intro") }}
+  </p>
+
+  <h2>{{ t("pages.legal_terms.service_scope_title") }}</h2>
+  <p>
+    {{ t("pages.legal_terms.service_scope_body") }}
+  </p>
+
+  <h2>{{ t("pages.legal_terms.etsy_compliance_title") }}</h2>
+  <ul>
+    <li>{{ t("pages.legal_terms.etsy_compliance_item_1") }}</li>
+    <li>{{ t("pages.legal_terms.etsy_compliance_item_2") }}</li>
+    <li>{{ t("pages.legal_terms.etsy_compliance_item_3") }}</li>
+  </ul>
+
+  <h2>{{ t("pages.legal_terms.data_access_title") }}</h2>
+  <ul>
+    <li>{{ t("pages.legal_terms.data_access_item_1") }}</li>
+    <li>{{ t("pages.legal_terms.data_access_item_2") }}</li>
+    <li>{{ t("pages.legal_terms.data_access_item_3") }}</li>
+  </ul>
+
+  <h2>{{ t("pages.legal_terms.warranty_title") }}</h2>
+  <p>
+    {{ t("pages.legal_terms.warranty_body") }}
+  </p>
+
+  <h2>{{ t("pages.legal_terms.support_title") }}</h2>
+  <p>
+    {{ t("pages.legal_terms.support_prefix") }}
+    <a class="text-link" href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+</section>
+{% endblock %}
